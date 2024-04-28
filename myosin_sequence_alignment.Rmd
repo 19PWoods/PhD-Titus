@@ -1,0 +1,64 @@
+---
+title: "Multiple sequence alignment in R"
+author: "Philip Woods"
+date generated: "4/28/24"
+date updated: "4/28/24"
+tutorial link: "https://www.youtube.com/watch?v=cmgJ_5ITguQ"
+output: pdf_document
+---
+
+# Introduction
+* Multiple sequence alignment directly from R
+* Provided by the msa external library
+* IMPORTANT: If first time using script, must install the msa, Biostrings, & seqinr packages 'install.packages(c(Biostrings,"msa","seqinr"))'
+
+```{r}
+library(Biostrings)
+library(msa)
+```
+
+# Read in Data and Convert to an Amino Acid StringSet
+* Must convert sequences to AAStringSet (or DNAStringSet).
+* 'seqtype': the nature of the sequences: 'DNA' or 'AA'
+* 'as.string': if 'TRUE' sequences are returned as a string instead of a vector of single characters
+* 'forceDNAtolower': whether sequences with 'seqtype == DNA'should be retunred as lower case letters
+* 'set.attributes': whether sequence attriburtes should be set
+```{r}
+# sequences = seqinr::read.fasta(file = file.choose(),
+#                                seqtype = "AA",
+#                                as.string = T)
+
+sequences = readAAStringSet(file = file.choose())
+
+sequences = AAStringSet(sequences)
+```
+
+# Perform alignment using ClustalW
+* Has access to 3 aligners: 'ClustalW', 'ClustalOmega', or 'MUSCLE'.
+```{r}
+myAlignment = msa(sequences, "ClustalOmega")
+```
+# Compute distances between sequences using 'seqinr' library
+```{r}
+# Convert the alignment format to seqinr using msaConvert
+alignment = msaConvert(myAlignment, "seqinr::alignment")
+
+# Compute the distance between the alignments
+distMatrix = seqinr::dist.alignment(alignment, "similarity")
+
+# Cluster the distance matrix using hclust
+clustering = hclust(distMatrix)
+plot(clustering)
+```
+# Making Dendrogram look better. Requires 'ape()' package
+```{r}
+# Transform the clustering as a dendrogram object
+dendrogram = as.dendrogram(clustering)
+
+# Transform into phylo object
+phylotree = ape::as.phylo(clustering)
+
+# plot as radial. Can spice things up, like adding color via. 'tip.color = c("red", "blue", etc....)'
+plot(phylotree, type = "radial")
+```
+
