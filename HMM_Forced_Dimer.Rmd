@@ -2,6 +2,7 @@
 library(tidyverse)
 library(readxl)
 library(cowplot)
+library(openxlsx)
 theme_set(theme_cowplot())
 ```
 
@@ -10,7 +11,8 @@ theme_set(theme_cowplot())
 dicty_total = read_excel(file.choose(), 
                          sheet = "Total_Cell_Output") %>% 
   mutate(Cell_Line = factor(Cell_Line, 
-                            levels=c("AX2", "G120", "dDia2","VASP","mhcA")))
+                            levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
+  mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571", "pDTi500"))) 
 
 dicty_total_trim = dicty_total %>% 
   group_by(Cell_Line, Plasmid) %>%
@@ -19,14 +21,15 @@ dicty_total_trim = dicty_total %>%
 dicty_filo = read_excel(file.choose(), 
                    sheet = "Total_Filo_Output") %>% 
   mutate(Cell_Line = factor(Cell_Line, 
-                            levels=c("AX2", "G120", "dDia2","VASP","mhcA")))
+                            levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
+    mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571", "pDTi500")))
 
 ```
 
 ```{r}
 # Table Summaries of Data
 totalcell_details = dicty_total %>% 
-  mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>% 
+  mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
   group_by(Cell_Line, Plasmid) %>% 
   summarize(Total_Cells= n(),
             Filopodia_Cells = sum(Filopodia == 1),
@@ -51,7 +54,7 @@ filo_length_details = dicty_filo %>%
             )
 
 mytable_actin = cbind(totalcell_details[1:7], filopercell_details[3:4], filo_length_details[3:4]) %>% 
-  filter(Cell_Line %in% c("AX2", "G120", "dDia2", "VASP"))
+  filter(Cell_Line %in% c("AX2", "G120", "dDia2", "VASP")) 
 mytable_actin
 
 mytable_mhcA = cbind(totalcell_details[1:7], filopercell_details[3:4], filo_length_details[3:4]) %>% 
@@ -107,7 +110,7 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     filter(Filo_Number > 0 & Filo_Number <30) %>% 
-    ggplot(aes(x = Cell_Line, y = Filo_Number, color = Plasmid)) +
+    ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
     ggforce::geom_sina(scale = F) +
    geom_point(data = mytable_actin,
               aes(y = mytable_actin$FiloNum_Avg,
@@ -126,8 +129,10 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell",
-         x = "Cell Line ")
+         x = "Cell Line")
 )
 
 (filo_per_cell_mhcA = dicty_total %>%
@@ -153,8 +158,10 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell",
-         x = "Cell Line ")
+         x = "Cell Line")
 )
 
 (cortex_actin = dicty_total %>%
@@ -181,8 +188,10 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Cortex:Cell Body Signal Ratio",
-         x = "Cell Line ")
+         x = "Cell Line")
 )
 
 (fcortex_mhcA = dicty_total %>%
@@ -209,8 +218,10 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Cortex:Cell Body Signal Ratio",
-         x = "Cell Line ")
+         x = "Cell Line")
 )
 
 (filolength_actin = dicty_filo %>%
@@ -237,8 +248,10 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Filopodia Length (um)",
-         x = "Cell Line ")
+         x = "Cell Line")
 )
 
 (filolength_mhcA = dicty_filo %>%
@@ -265,6 +278,8 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Filopodia Length (um)",
          x = "Cell Line ")
 )
@@ -273,43 +288,11 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
 
 
 ```{r}
-
-
-(filo_per_cell_actin = dicty_total %>%
-   filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
-    group_by(Cell_Line, Plasmid) %>% 
-    ggplot(aes(x = Cell_Line,
-               y = Cortex_Body,
-               color = Plasmid)) +
-    ggforce::geom_sina(scale = F) +
-   geom_point(data = mytable_actin,
-              aes(y = mytable_actin$CortBody_Ratio_Avg,
-                  group_by = mytable_actin$Plasmid),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  alpha = 0.5,
-                  size = 1.5) +
-   geom_errorbar(data = mytable_actin,
-                 aes(y = mytable_actin$CortBody_Ratio_Avg,
-                     group_by = mytable_actin$Plasmid,
-                     ymin = mytable_actin$CortBody_Ratio_Avg - mytable_actin$CortBody_Ratio_SD/sqrt(mytable_actin$Total_Cells),
-                     ymax = mytable_actin$CortBody_Ratio_Avg + mytable_actin$CortBody_Ratio_SD/sqrt(mytable_actin$Total_Cells)),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 alpha = 0.5,
-                 size = 0.75,
-                 width = 0.4) +
-    labs(y = "Cortex:Cell Body Signal Ratio",
-         x = "Cell Line ")
-)
-```
-
-```{r}
 (filo_per_cell_actin = dicty_total %>%
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     filter(Filo_Number > 0 & Filo_Number <30) %>% 
-    ggplot(aes(x = Cell_Line, y = Filo_Number, color = Plasmid)) +
+    ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
     ggforce::geom_sina(scale = F) +
    geom_point(data = mytable_actin,
               aes(y = mytable_actin$FiloNum_Avg,
@@ -328,8 +311,11 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell",
-         x = "Cell Line ")
+         x = "Cell Line")
 )
 ```
+
 
