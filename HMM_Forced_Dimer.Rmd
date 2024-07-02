@@ -12,7 +12,7 @@ dicty_total = read_excel(file.choose(),
                          sheet = "Total_Cell_Output") %>% 
   mutate(Cell_Line = factor(Cell_Line, 
                             levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
-  mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571", "pDTi500"))) 
+  mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500"))) 
 
 dicty_total_trim = dicty_total %>% 
   group_by(Cell_Line, Plasmid) %>%
@@ -22,7 +22,7 @@ dicty_filo = read_excel(file.choose(),
                    sheet = "Total_Filo_Output") %>% 
   mutate(Cell_Line = factor(Cell_Line, 
                             levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
-    mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571", "pDTi500")))
+    mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500")))
 
 ```
 
@@ -53,11 +53,16 @@ filo_length_details = dicty_filo %>%
             Filo_Length_Median = median(Filo_Length, na.rm = T)
             )
 
-mytable_actin = cbind(totalcell_details[1:7], filopercell_details[3:4], filo_length_details[3:4]) %>% 
-  filter(Cell_Line %in% c("AX2", "G120", "dDia2", "VASP")) 
+mytable_actin = cbind(totalcell_details[1:7], 
+                      filopercell_details[3:4], 
+                      filo_length_details[3:4]) %>% 
+  filter(Cell_Line %in% c("AX2", "G120", "dDia2", "VASP")) %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500"))
 mytable_actin
 
-mytable_mhcA = cbind(totalcell_details[1:7], filopercell_details[3:4], filo_length_details[3:4]) %>% 
+mytable_mhcA = cbind(totalcell_details[1:7], 
+                     filopercell_details[3:4], 
+                     filo_length_details[3:4]) %>% 
   filter(Cell_Line %in% c("AX2", "G120", "mhcA"))
 mytable_mhcA
 ```
@@ -108,6 +113,7 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
 # GGplots of Data 
 (filo_per_cell_actin = dicty_total %>%
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     filter(Filo_Number > 0 & Filo_Number <30) %>% 
     ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
@@ -158,14 +164,15 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
-    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
-                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell",
          x = "Cell Line")
 )
 
 (cortex_actin = dicty_total %>%
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
+    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
                y = Cortex_Body,
@@ -194,7 +201,7 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
          x = "Cell Line")
 )
 
-(fcortex_mhcA = dicty_total %>%
+(cortex_mhcA = dicty_total %>%
    filter(Cell_Line %in% c("AX2", "G120", "mhcA")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
@@ -218,14 +225,15 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
-    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
-                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
     labs(y = "Cortex:Cell Body Signal Ratio",
          x = "Cell Line")
 )
 
 (filolength_actin = dicty_filo %>%
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
+    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
                y = Filo_Length,
@@ -278,8 +286,8 @@ TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
                  alpha = 0.5,
                  size = 0.75,
                  width = 0.4) +
-    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
-                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
     labs(y = "Filopodia Length (um)",
          x = "Cell Line ")
 )
