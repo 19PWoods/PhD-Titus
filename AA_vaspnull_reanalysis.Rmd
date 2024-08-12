@@ -1,0 +1,56 @@
+```{r}
+library(tidyverse)
+library(readxl)
+library(cowplot)
+library(openxlsx)
+theme_set(theme_cowplot())
+```
+
+# Read in Data
+```{r}
+AA_cell = read_excel(file.choose(), 
+                         sheet = "Total_Cell_Output")
+
+AA_filo = read_excel(file.choose(),
+                     sheet = "Total_Filo_Output")
+```
+
+# Data Table
+```{r}
+summary_cell = AA_cell %>% 
+  mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
+  group_by(Date) %>% 
+  summarize(Total_Cells = n(),
+            Filopodia_Cells = sum(Filopodia == 1),
+            Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
+            CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
+            CortBody_Ratio_SD = sd(Cortex_Body, na.rm = T),
+            FiloNum_Avg = sum(Filo_Number)/Filopodia_Cells,
+            FiloNum_Sd = FiloNum_Avg/sqrt(Filopodia_Cells)
+  )
+
+summary_filo = AA_filo %>% 
+  group_by(Date) %>% 
+  summarize(Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
+            Filo_Length_SD = sd(Filo_Length, na.rm = T),
+            Filo_Length_Median = median(Filo_Length, na.rm = T)
+            )
+
+summary_cell
+summary_filo
+```
+
+# Graph
+```{r}
+(AA_filo_gg = AA_cell %>%
+   filter(Filo_Number > 0) %>% 
+    ggplot(aes(x = Plasmid, y = Filo_Number, color = Date)) +
+    ggforce::geom_sina() +
+   # stat_summary(fun.y = mean,
+   #              fun.ymin = function(y) mean(y) - sd(y),
+   #              fun.ymax = function(y) mean(y) + sd(y)
+   #              ) +
+    labs(y = "Average Filopodia Per Cell")
+)
+```
+
