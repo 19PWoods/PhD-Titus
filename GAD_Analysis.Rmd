@@ -1,0 +1,102 @@
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggprism)
+library(openxlsx)
+theme_set(theme_prism())
+```
+
+```{r} 
+# Reading in Data
+
+dicty_total = read_excel(file.choose(), 
+                         sheet = "Total_Cell_Output") %>% 
+  mutate(Cell_Line = factor(Cell_Line)) %>% 
+  mutate(Plasmid = factor(Plasmid, levels = c("516", "m2","m7", "m13", "m21"))) 
+
+
+dicty_filo = read_excel(file.choose(), 
+                   sheet = "Total_Filo_Output") %>% 
+  mutate(Cell_Line = factor(Cell_Line)) %>% 
+  mutate(Plasmid = factor(Plasmid, levels = c("516", "m2","m7", "m13", "m21"))) 
+```
+
+```{r}
+# Summary Statistic Table 
+
+totalcell_details = dicty_total %>% 
+  mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
+  group_by(Cell_Line, Plasmid) %>% 
+  summarize(Total_Cells= n(),
+            Filopodia_Cells = sum(Filopodia == 1),
+            Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
+            CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
+            CortBody_Ratio_SE = sd(Cortex_Body, na.rm = T)/sqrt(Total_Cells)
+            )
+
+filopercell_details = dicty_total %>%
+  group_by(Cell_Line, Plasmid) %>%
+  filter(Filo_Number > 0) %>%
+  summarize(Total_Cells = n(),
+            FiloNum_Avg = mean(Filo_Number, na.rm = T),
+            FiloNum_SE = sd(Filo_Number, na.rm = T)/sqrt(Total_Cells),
+            Filoper10um_Avg = mean(Filos_per_10um, na.rm = T),
+            Filoper10um_SE = sd(Filos_per_10um, na.rm = T)/sqrt(Total_Cells)
+            )
+
+filo_length_details = dicty_filo %>%
+  group_by(Cell_Line, Plasmid) %>%
+  summarize(Total_Cells = n(),
+            Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
+            Filo_Length_SE = sd(Filo_Length, na.rm = T)/sqrt(Total_Cells),
+            Tip_Avg = mean(Filo_Body_Int, na.rm = T),
+            Tip_SE = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
+            )
+mytable = cbind(totalcell_details, filopercell_details[4:7], filo_length_details[4:6])
+write.xlsx(mytable, file = "GAD_MotMut_DataTable.xlsx")
+```
+
+```{r}
+# Statistical Test (One-Way Anova)
+
+filo_num_mod = aov(Filo_Number ~  Plasmid, data = dicty_total)
+summary(filo_num_mod)
+TukeyHSD(filo_num_mod, "Plasmid")
+
+cortexcellbody_mod = aov(Cortex_Body ~  Plasmid, data = dicty_total)
+summary(cortexcellbody_mod)
+TukeyHSD(cortexcellbody_mod, "Plasmid")
+
+filo_length_mod = aov(Filo_Length ~  Plasmid, data = dicty_filo)
+summary(filo_length_mod)
+TukeyHSD(filo_length_mod, "Plasmid")
+
+tip_int_mod = aov(Filo_Body_Int ~  Plasmid,data = dicty_filo)
+summary(tip_int_mod)
+TukeyHSD(tip_int_mod, "Plasmid")
+```
+
+```{r}
+(filo_gg = dicty_total %>% 
+  filter(Filo_Number > 0) %>% 
+  ggplot(aes(x = Plasmid, y = Filo_Number, color = factor(Collection_Round))) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5)+
+  geom_point(data = mytable,
+              aes(y = FiloNum_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable,
+                 aes(y = FiloNum_Avg,
+                     group_by = Plasmid,
+                     ymin = FiloNum_Avg - FiloNum_SE,
+                     ymax = FiloNum_Avg + FiloNum_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) 
+)
+```
+
