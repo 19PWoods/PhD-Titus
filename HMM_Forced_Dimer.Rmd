@@ -1,11 +1,14 @@
+# Loading in packages
 ```{r}
 library(tidyverse)
 library(readxl)
-library(cowplot)
+# library(xlsx)
+library(ggprism)
 library(openxlsx)
-theme_set(theme_cowplot())
+theme_set(theme_prism())
 ```
 
+# Reading in Data
 ```{r}
 # Reading in Data
 dicty_total = read_excel(file.choose(), 
@@ -14,9 +17,6 @@ dicty_total = read_excel(file.choose(),
                             levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
   mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500"))) 
 
-dicty_total_trim = dicty_total %>% 
-  group_by(Cell_Line, Plasmid) %>%
-  filter(Filo_Number > 0)
 
 dicty_filo = read_excel(file.choose(), 
                    sheet = "Total_Filo_Output") %>% 
@@ -26,6 +26,7 @@ dicty_filo = read_excel(file.choose(),
 
 ```
 
+# Generating Summary Statistic Tables
 ```{r}
 # Table Summaries of Data
 totalcell_details = dicty_total %>% 
@@ -35,54 +36,50 @@ totalcell_details = dicty_total %>%
             Filopodia_Cells = sum(Filopodia == 1),
             Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
             CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
-            CortBody_Ratio_SD = sd(Cortex_Body, na.rm = T),
+            CortBody_Ratio_SD = sd(Cortex_Body, na.rm = T)/sqrt(Total_Cells)
             )
 
 filopercell_details = dicty_total %>%
   group_by(Cell_Line, Plasmid) %>%
   filter(Filo_Number > 0) %>%
-  summarize(FiloNum_Avg = mean(Filo_Number, na.rm = T),
-            FiloNum_SD = sd(Filo_Number, na.rm = T),
-            Median_FiloNum = median(Filo_Number, na.rm = T)
+  summarize(Total_Cells = n(),
+            FiloNum_Avg = mean(Filo_Number, na.rm = T),
+            FiloNum_SD = sd(Filo_Number, na.rm = T)/sqrt(Total_Cells),
+            Median_FiloNum = median(Filo_Number, na.rm = T),
+            Filoper10um_Avg = mean(Filos_per_10um, na.rm = T),
+            Filoper10um_sd = sd(Filos_per_10um, na.rm = T)/sqrt(Total_Cells)
             )
 
 filo_length_details = dicty_filo %>%
   group_by(Cell_Line, Plasmid) %>%
-  summarize(Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
-            Filo_Length_SD = sd(Filo_Length, na.rm = T),
+  summarize(Total_Cells = n(),
+            Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
+            Filo_Length_SD = sd(Filo_Length, na.rm = T)/sqrt(Total_Cells),
             Filo_Length_Median = median(Filo_Length, na.rm = T),
-            Tip_Avg = mean(Tip_Intensity_Sum, na.rm = T),
-            Tip_SD = sd(Tip_Intensity_Sum, na.rm = T)
+            Tip_Avg = mean(Filo_Body_Int, na.rm = T),
+            Tip_SD = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
             )
 
 mytable_actin = cbind(totalcell_details[1:7],
-                      filopercell_details[3:4],
-                      filo_length_details[3:7]) %>%
+                      filopercell_details[4:8],
+                      filo_length_details[4:8]) %>%
   filter(Cell_Line %in% c("AX2", "G120", "dDia2", "VASP")) %>%
   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500"))
 mytable_actin
 
 mytable_mhcA = cbind(totalcell_details[1:7],
-                     filopercell_details[3:4],
-                     filo_length_details[3:7]) %>%
+                     filopercell_details[4:8],
+                     filo_length_details[4:8]) %>%
   filter(Cell_Line %in% c("AX2", "G120", "mhcA"))
 mytable_mhcA
+
+mytable_all = cbind(totalcell_details[1:7],
+                      filopercell_details[4:8],
+                      filo_length_details[4:8])
+
+write.xlsx(mytable_all, file = "HMM_DataTable.xlsx")
 ```
 
-```{r, echo=FALSE}
-# Stacked BarPlot for Cells Producing Filopodia 
-(stacked_table = totalcell_details %>% 
-  select(c(Cell_Line, Plasmid, Total_Cells, Filopodia_Cells)) %>% 
-  ggplot() +
-  geom_bar(aes(x = Cell_Line,
-               y = Total_Cells,
-               fill = Plasmid),
-           position = 'stack',
-           stat = 'identity') +
-  labs(y = 'Total Cells',
-       x = 'Cell Line')
-)
-```
 
 ```{r, echo = FALSE}
 # # Rosner Outlier Test
@@ -98,22 +95,109 @@ mytable_mhcA
 
 ```{r, echo=FALSE}
 # Stats on variables
-filo_num_mod = aov(Filo_Number ~ Cell_Line * Plasmid, 
-      data = dicty_total_trim)
-TukeyHSD(filo_num_mod, "Cell_Line:Plasmid")
 
-cortexcellbody_mod = aov(Cortex_Body ~ Cell_Line * Plasmid, 
-                         data = dicty_total_trim)
-TukeyHSD(cortexcellbody_mod, "Cell_Line:Plasmid")
+dicty_total_trim = dicty_total %>% 
+  group_by(Cell_Line, Plasmid) %>%
+  filter(Filo_Number > 0) %>% 
+  filter(Cell_Line %in% c("mhcA", "AX2"))
 
-filo_length_mod = aov(Filo_Length ~ Cell_Line * Plasmid,
-                      data = dicty_filo)
-TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
+dicty_filo_trim = dicty_filo %>% 
+  filter(Cell_Line %in% c("mhcA", "AX2"))
+
+
+# filo_num_mod = aov(Filo_Number ~  Plasmid,
+#       data = dicty_total_trim)
+# TukeyHSD(filo_num_mod, "Plasmid")
+# 
+# cortexcellbody_mod = aov(Cortex_Body ~  Plasmid,
+#                          data = dicty_total_trim)
+# TukeyHSD(cortexcellbody_mod, "Plasmid")
+# 
+# filo_length_mod = aov(Filo_Length ~  Plasmid,
+#                       data = dicty_filo_trim)
+# TukeyHSD(filo_length_mod, "Plasmid")
+
+# tip_int_mod = aov(Filo_Body_Int ~  Plasmid,
+#                   data = dicty_filo_trim)
+# summary(tip_int_mod)
+# TukeyHSD(tip_int_mod, "Plasmid")
+
+
+
+# filo_num_mod = aov(Filo_Number ~ Cell_Line * Plasmid,
+#       data = dicty_total_trim)
+# TukeyHSD(filo_num_mod, "Cell_Line:Plasmid")
+# 
+# cortexcellbody_mod = aov(Cortex_Body ~ Cell_Line * Plasmid,
+#                          data = dicty_total_trim)
+# TukeyHSD(cortexcellbody_mod, "Cell_Line:Plasmid")
+# 
+# filo_length_mod = aov(Filo_Length ~ Cell_Line * Plasmid,
+#                       data = dicty_filo_trim)
+# TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
+# 
+tip_int_mod = aov(Filo_Body_Int ~ Cell_Line * Plasmid,
+                  data = dicty_filo_trim)
+TukeyHSD(tip_int_mod, "Cell_Line:Plasmid")
+
+filoper10_mod = aov(Filos_per_10um ~ Cell_Line * Plasmid,
+                  data = dicty_total_trim)
+summary(filoper10_mod)
+TukeyHSD(tip_int_mod, "Cell_Line:Plasmid")
 ```
 
 # Graphing 
 
 ## AX2 Graphs
+```{r}
+ax2 = mytable_actin %>% 
+  filter(Cell_Line == "AX2")
+
+# (ax2_fxnfilo = dicty_total %>%
+#    filter(Cell_Line %in% c("AX2")) %>%
+#    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>%
+#     filter(Filo_Number > 0 & Filo_Number <30) %>%
+#     ggplot(aes(x = Plasmid, y = Filo_Number, color = factor(Collection_Round))) +
+#     ggforce::geom_sina(scale =T) +
+#    geom_point(data = ax2,
+#               aes(y = FiloNum_Avg),
+#                   color = "black",
+#                   alpha = 0.5,
+#                   size = 1.5) +
+#    geom_errorbar(data =ax2,
+#                  aes(y = FiloNum_Avg,
+#                      ymin = FiloNum_Avg - FiloNum_SD,
+#                      ymax = FiloNum_Avg + FiloNum_SD),
+#                  color = "black",
+#                  alpha = 0.5,
+#                  size = 1,
+#                  width = 0.2) +
+#    # scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+#    #                    labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+#    #                    values = c("#00ba39", "#609cff", "#f8766d")) +
+#     labs(y = "Average Filopodia Per Cell") +
+#     theme(axis.title.x = element_blank(),
+#           legend.position = c(0.75,0.85))
+# )
+
+(ax2_fxnfilo2 = dicty_total %>%
+   filter(Cell_Line %in% c("AX2")) %>%
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>%
+    filter(Filo_Number > 0 & Filo_Number <30) %>%
+    ggplot(aes(x = Cell_Line, y = Filo_Number, fill = Plasmid)) +
+    geom_violin(alpha = 0.5) +
+    ggforce::geom_sina(scale = T,
+                       alpha = 0.5,
+                       shape =20)+
+   scale_fill_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                      values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Average Filopodia Per Cell") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85))
+)
+```
 
 ```{r}
 ax2 = mytable_actin %>% 
@@ -122,9 +206,9 @@ ax2 = mytable_actin %>%
 (ax2_fxnfilo = dicty_total %>%
    filter(Cell_Line %in% c("AX2")) %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    filter(Filo_Number > 0 & Filo_Number <30) %>% 
+    
     ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = ax2,
               aes(y = FiloNum_Avg,
                   group_by = Plasmid),
@@ -135,24 +219,27 @@ ax2 = mytable_actin %>%
    geom_errorbar(data =ax2,
                  aes(y = FiloNum_Avg,
                      group_by = Plasmid,
-                     ymin = FiloNum_Avg - FiloNum_SD/sqrt(Total_Cells),
-                     ymax = FiloNum_Avg + FiloNum_SD/sqrt(Total_Cells)),
+                     ymin = FiloNum_Avg - FiloNum_SD,
+                     ymax = FiloNum_Avg + FiloNum_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell") +
-    theme(axis.title.x = element_blank())
+     theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85))
 )
 
 (ax2_cortex= dicty_total %>%
    filter(Cell_Line %in% c("AX2")) %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     ggplot(aes(x = Cell_Line, y = Cortex_Body, color =Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = ax2,
               aes(y = CortBody_Ratio_Avg,
                   group_by = Plasmid),
@@ -163,8 +250,8 @@ ax2 = mytable_actin %>%
    geom_errorbar(data =ax2,
                  aes(y = CortBody_Ratio_Avg,
                      group_by = Plasmid,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD/sqrt(Total_Cells),
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD/sqrt(Total_Cells)),
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
@@ -173,9 +260,12 @@ ax2 = mytable_actin %>%
     geom_hline(yintercept = 1,
                linetype ="dashed") +
    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Cortex:Cell Body Ratio") +
-    theme(axis.title.x = element_blank()) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
     ylim(0.5,2)
 )
 
@@ -188,7 +278,7 @@ ax2_filo = dicty_filo %>%
     ggplot(aes(x = Cell_Line,
                y = Filo_Length,
                color = Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = ax2,
               aes(y = Filo_Length_Avg,
                   group_by = Plasmid),
@@ -199,26 +289,30 @@ ax2_filo = dicty_filo %>%
    geom_errorbar(data = ax2,
                  aes(y = Filo_Length_Avg,
                      group_by = Plasmid,
-                     ymin = Filo_Length_Avg - Filo_Length_SD/sqrt(Total_Cells),
-                     ymax = Filo_Length_Avg + Filo_Length_SD/sqrt(Total_Cells)),
+                     ymin = Filo_Length_Avg - Filo_Length_SD,
+                     ymax = Filo_Length_Avg + Filo_Length_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
     labs(y = "Filopodia Length (um)",
          x = "Cell Line")
 )
 
-(ax2_tipint = ax2_filo %>%
+(ax2_tip_body_int = ax2_filo %>%
     filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
-               y = Tip_Intensity_Sum,
+               y = Filo_Body_Int,
                color = Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = ax2,
               aes(y = Tip_Avg,
                   group_by = Plasmid),
@@ -229,16 +323,18 @@ ax2_filo = dicty_filo %>%
    geom_errorbar(data = ax2,
                  aes(y = Tip_Avg,
                      group_by = Plasmid,
-                     ymin = Tip_Avg - Tip_SD/sqrt(Total_Cells),
-                     ymax = Tip_Avg + Tip_SD/sqrt(Total_Cells)),
+                     ymin = Tip_Avg - Tip_SD,
+                     ymax = Tip_Avg + Tip_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
-    labs(y = "Filopodia Tip Intensity (A.U.)",
+    theme(axis.title.x = element_blank()) +
+    labs(y = "Filopodia Tip:Cell Body Intensity",
          x = "Cell Line")
 )
 ```
@@ -251,9 +347,9 @@ G120 = mytable_actin %>%
 (G120_fxnfilo = dicty_total %>%
    filter(Cell_Line %in% c("G120")) %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    filter(Filo_Number > 0 & Filo_Number <30) %>% 
+    
     ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = G120,
               aes(y = FiloNum_Avg,
                   group_by = Plasmid),
@@ -264,24 +360,55 @@ G120 = mytable_actin %>%
    geom_errorbar(data =G120,
                  aes(y = FiloNum_Avg,
                      group_by = Plasmid,
-                     ymin = FiloNum_Avg - FiloNum_SD/sqrt(Total_Cells),
-                     ymax = FiloNum_Avg + FiloNum_SD/sqrt(Total_Cells)),
+                     ymin = FiloNum_Avg - FiloNum_SD,
+                     ymax = FiloNum_Avg + FiloNum_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell") +
-    theme(axis.title.x = element_blank())
+    theme(axis.title.x = element_blank(), 
+          legend.box.background = element_rect(color = "black"),           legend.position = c(0.75,0.85))
 )
+
+# (G120_fxnfilo_transfection = dicty_total %>%
+#    filter(Cell_Line %in% c("G120")) %>%
+#    filter(Plasmid %in% c("pDTi516")) %>%
+# 
+#     ggplot(aes(x = Cell_Line, y = Filo_Number, color = factor(Transformation))) +
+#     ggforce::geom_sina(scale =F) +
+#    geom_point(data = G120,
+#               aes(y = FiloNum_Avg,
+#                   group_by = Plasmid),
+#                   position = position_dodge(width = 0.9),
+#                   color = "black",
+#                   alpha = 0.5,
+#                   size = 1.5) +
+#    geom_errorbar(data =G120,
+#                  aes(y = FiloNum_Avg,
+#                      group_by = Plasmid,
+#                      ymin = FiloNum_Avg - FiloNum_SD/sqrt(Total_Cells),
+#                      ymax = FiloNum_Avg + FiloNum_SD/sqrt(Total_Cells)),
+#                  position = position_dodge(width = 0.9),
+#                  color = "black",
+#                  alpha = 0.5,
+#                  size = 1,
+#                  width = 0.2) +
+#    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+#                          values = c("#00ba39", "#609cff", "#f8766d")) +
+#     labs(y = "Average Filopodia Per Cell") +
+#     theme(axis.title.x = element_blank(),           panel.border = element_rect(color = "black", fill = NA),           legend.box.background = element_rect(color = "black"),           legend.position = c(0.75,0.85))
+# )
 
 (G120_cortex= dicty_total %>%
    filter(Cell_Line %in% c("G120")) %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     ggplot(aes(x = Cell_Line, y = Cortex_Body, color =Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = G120,
               aes(y = CortBody_Ratio_Avg,
                   group_by = Plasmid),
@@ -292,8 +419,8 @@ G120 = mytable_actin %>%
    geom_errorbar(data =G120,
                  aes(y = CortBody_Ratio_Avg,
                      group_by = Plasmid,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD/sqrt(Total_Cells),
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD/sqrt(Total_Cells)),
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
@@ -302,9 +429,12 @@ G120 = mytable_actin %>%
     geom_hline(yintercept = 1,
                linetype ="dashed") +
    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Cortex:Cell Body Ratio") +
-    theme(axis.title.x = element_blank()) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
     ylim(0.5,2)
 )
 
@@ -317,7 +447,7 @@ G120_filo = dicty_filo %>%
     ggplot(aes(x = Cell_Line,
                y = Filo_Length,
                color = Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = G120,
               aes(y = Filo_Length_Avg,
                   group_by = Plasmid),
@@ -328,15 +458,19 @@ G120_filo = dicty_filo %>%
    geom_errorbar(data = G120,
                  aes(y = Filo_Length_Avg,
                      group_by = Plasmid,
-                     ymin = Filo_Length_Avg - Filo_Length_SD/sqrt(Total_Cells),
-                     ymax = Filo_Length_Avg + Filo_Length_SD/sqrt(Total_Cells)),
+                     ymin = Filo_Length_Avg - Filo_Length_SD,
+                     ymax = Filo_Length_Avg + Filo_Length_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
     labs(y = "Filopodia Length (um)",
          x = "Cell Line")
 )
@@ -345,9 +479,9 @@ G120_filo = dicty_filo %>%
     filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
-               y = Tip_Intensity_Sum,
+               y = Filo_Body_Int,
                color = Plasmid)) +
-    ggforce::geom_sina() +
+    ggforce::geom_sina(scale =F) +
    geom_point(data = G120,
               aes(y = Tip_Avg,
                   group_by = Plasmid),
@@ -358,69 +492,76 @@ G120_filo = dicty_filo %>%
    geom_errorbar(data = G120,
                  aes(y = Tip_Avg,
                      group_by = Plasmid,
-                     ymin = Tip_Avg - Tip_SD/sqrt(Total_Cells),
-                     ymax = Tip_Avg + Tip_SD/sqrt(Total_Cells)),
+                     ymin = Tip_Avg - Tip_SD,
+                     ymax = Tip_Avg + Tip_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
-    labs(y = "Filopodia Tip Intensity (A.U.)",
+    theme(axis.title.x = element_blank()) +
+    labs(y = "Filopodia Tip:Cell Body Intensity",
          x = "Cell Line")
 )
 ```
+
+## Vasp and dDia2
 ```{r}
-G120 = mytable_actin %>% 
-  filter(Cell_Line == "G120")
+actin = mytable_actin %>% 
+  filter(Cell_Line == "VASP"| Cell_Line == "dDia2")
 
-(G120_fxnfilo = dicty_total %>%
-   filter(Cell_Line %in% c("G120")) %>% 
+(actin_fxnfilo = dicty_total %>%
+   filter(Cell_Line == "VASP"| Cell_Line == "dDia2") %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    filter(Filo_Number > 0 & Filo_Number <30) %>% 
+    
     ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
-    ggforce::geom_sina() +
-   geom_point(data = G120,
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = actin,
               aes(y = FiloNum_Avg,
                   group_by = Plasmid),
                   position = position_dodge(width = 0.9),
                   color = "black",
                   alpha = 0.5,
                   size = 1.5) +
-   geom_errorbar(data =G120,
+   geom_errorbar(data =actin,
                  aes(y = FiloNum_Avg,
                      group_by = Plasmid,
-                     ymin = FiloNum_Avg - FiloNum_SD/sqrt(Total_Cells),
-                     ymax = FiloNum_Avg + FiloNum_SD/sqrt(Total_Cells)),
+                     ymin = FiloNum_Avg - FiloNum_SD,
+                     ymax = FiloNum_Avg + FiloNum_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Average Filopodia Per Cell") +
-    theme(axis.title.x = element_blank())
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85))
 )
 
-(G120_cortex= dicty_total %>%
-   filter(Cell_Line %in% c("G120")) %>% 
+(actin_cortex= dicty_total %>%
+   filter(Cell_Line == "VASP"| Cell_Line == "dDia2") %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     ggplot(aes(x = Cell_Line, y = Cortex_Body, color =Plasmid)) +
-    ggforce::geom_sina() +
-   geom_point(data = G120,
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = actin,
               aes(y = CortBody_Ratio_Avg,
                   group_by = Plasmid),
                   position = position_dodge(width = 0.9),
                   color = "black",
                   alpha = 0.5,
                   size = 1.5) +
-   geom_errorbar(data =G120,
+   geom_errorbar(data =actin,
                  aes(y = CortBody_Ratio_Avg,
                      group_by = Plasmid,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD/sqrt(Total_Cells),
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD/sqrt(Total_Cells)),
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
@@ -429,76 +570,613 @@ G120 = mytable_actin %>%
     geom_hline(yintercept = 1,
                linetype ="dashed") +
    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
     labs(y = "Cortex:Cell Body Ratio") +
-    theme(axis.title.x = element_blank()) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
     ylim(0.5,2)
 )
 
-G120_filo = dicty_filo %>% 
-  filter(Cell_Line == "G120")
+actin_filo = dicty_filo %>% 
+  filter(Cell_Line == "VASP"| Cell_Line == "dDia2")
 
-(G120_length = G120_filo %>%
+(actin_length = actin_filo %>%
     filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
                y = Filo_Length,
                color = Plasmid)) +
-    ggforce::geom_sina() +
-   geom_point(data = G120,
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = actin,
               aes(y = Filo_Length_Avg,
                   group_by = Plasmid),
                   position = position_dodge(width = 0.9),
                   color = "black",
                   alpha = 0.5,
                   size = 1.5) +
-   geom_errorbar(data = G120,
+   geom_errorbar(data = actin,
                  aes(y = Filo_Length_Avg,
                      group_by = Plasmid,
-                     ymin = Filo_Length_Avg - Filo_Length_SD/sqrt(Total_Cells),
-                     ymax = Filo_Length_Avg + Filo_Length_SD/sqrt(Total_Cells)),
+                     ymin = Filo_Length_Avg - Filo_Length_SD,
+                     ymax = Filo_Length_Avg + Filo_Length_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
     labs(y = "Filopodia Length (um)",
          x = "Cell Line")
 )
 
-(G120_tipint = G120_filo %>%
+(actin_tipint = actin_filo %>%
     filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
     ggplot(aes(x = Cell_Line,
-               y = Tip_Intensity_Sum,
+               y = Filo_Body_Int,
                color = Plasmid)) +
-    ggforce::geom_sina() +
-   geom_point(data = G120,
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = actin,
               aes(y = Tip_Avg,
                   group_by = Plasmid),
                   position = position_dodge(width = 0.9),
                   color = "black",
                   alpha = 0.5,
                   size = 1.5) +
-   geom_errorbar(data = G120,
+   geom_errorbar(data = actin,
                  aes(y = Tip_Avg,
                      group_by = Plasmid,
-                     ymin = Tip_Avg - Tip_SD/sqrt(Total_Cells),
-                     ymax = Tip_Avg + Tip_SD/sqrt(Total_Cells)),
+                     ymin = Tip_Avg - Tip_SD,
+                     ymax = Tip_Avg + Tip_SD),
                  position = position_dodge(width = 0.9),
                  color = "black",
                  alpha = 0.5,
                  size = 1,
                  width = 0.2) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
                          values = c("#00ba39", "#609cff", "#f8766d")) +
-    labs(y = "Filopodia Tip Intensity (A.U.)",
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black")) +
+    labs(y = "Filopodia Tip:Cell Body Intensity",
          x = "Cell Line")
 )
 ```
+## mhcA null cells
+```{r}
+mhcA = mytable_mhcA %>% 
+  filter(Cell_Line %in% c("mhcA")) %>% 
+  filter(Plasmid %in% c("pDTi516","pDTi571", "pDTi500"))
 
+(mhcA_fxnfilo = dicty_total %>%
+    filter(Cell_Line %in% c("mhcA")) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA,
+              aes(y = FiloNum_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA,
+                 aes(y = FiloNum_Avg,
+                     group_by = Plasmid,
+                     ymin = FiloNum_Avg - FiloNum_SD,
+                     ymax = FiloNum_Avg + FiloNum_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Average Filopodia Per Cell") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85))
+)
+
+(mhcA_filoperimeter = dicty_total %>%
+    filter(Cell_Line %in% c("mhcA")) %>% 
+    filter(Filo_Number > 0) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    ggplot(aes(x = Cell_Line, y = Filos_per_10um, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA,
+              aes(y = Filoper10um_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA,
+                 aes(y = Filoper10um_Avg,
+                     group_by = Plasmid,
+                     ymin = Filoper10um_Avg - Filoper10um_sd,
+                     ymax = Filoper10um_Avg + Filoper10um_sd),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Average Filopodia/ 10um") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85))
+)
+
+(mhcA_cortex= dicty_total %>%
+     filter(Cell_Line %in% c("mhcA")) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    ggplot(aes(x = Cell_Line, y = Cortex_Body, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA,
+              aes(y = CortBody_Ratio_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA,
+                 aes(y = CortBody_Ratio_Avg,
+                     group_by = Plasmid,
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    geom_hline(yintercept = 1,
+               linetype ="dashed") +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Cortex:Cell Body Ratio") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85)) +
+    ylim(0.5,2)
+)
+
+mhcA_filo = dicty_filo %>% 
+   filter(Cell_Line == "mhcA")
+
+(mhcA_length = mhcA_filo %>%
+    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    group_by(Cell_Line, Plasmid) %>% 
+    ggplot(aes(x = Cell_Line,
+               y = Filo_Length,
+               color = Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA,
+              aes(y = Filo_Length_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data = mhcA,
+                 aes(y = Filo_Length_Avg,
+                     group_by = Plasmid,
+                     ymin = Filo_Length_Avg - Filo_Length_SD,
+                     ymax = Filo_Length_Avg + Filo_Length_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
+    labs(y = "Filopodia Length (um)",
+         x = "Cell Line")
+)
+
+(mhcA_tipint = mhcA_filo %>%
+     filter(Cell_Line %in% c("mhcA")) %>% 
+    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    group_by(Cell_Line, Plasmid) %>% 
+    ggplot(aes(x = Cell_Line,
+               y = Filo_Body_Int,
+               color = Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA,
+              aes(y = Tip_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data = mhcA,
+                 aes(y = Tip_Avg,
+                     group_by = Plasmid,
+                     ymin = Tip_Avg - Tip_SD,
+                     ymax = Tip_Avg + Tip_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank()) +
+    labs(y = "Filopodia Tip:Cell Body Intensity",
+         x = "Cell Line")
+)
+```
+## AX2 pDTi516 vs mhcA null cells 
+
+```{r}
+mhcA_AX2 = mytable_mhcA %>% 
+  filter(Cell_Line %in% c("AX2", "mhcA")) %>% 
+    mutate(x = ifelse(Plasmid %in% c("pDTi571", "pDTi500") & Cell_Line == "AX2", 1, 0)) %>% 
+    filter(x == 0) %>% 
+  filter(Plasmid %in% c("pDTi516","pDTi571", "pDTi500"))
+
+(mhcA_AX2_fxnfilo = dicty_total %>%
+    filter(Cell_Line %in% c("AX2", "mhcA")) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    mutate(x = ifelse(Plasmid %in% c("pDTi571", "pDTi500") & Cell_Line == "AX2", 1, 0)) %>% 
+    filter(x == 0) %>% 
+    ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_AX2,
+              aes(y = FiloNum_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA_AX2,
+                 aes(y = FiloNum_Avg,
+                     group_by = Plasmid,
+                     ymin = FiloNum_Avg - FiloNum_SD,
+                     ymax = FiloNum_Avg + FiloNum_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Average Filopodia Per Cell") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85))
+)
+
+(mhcA_AX2_filoper10 = dicty_total %>%
+    filter(Cell_Line %in% c("AX2", "mhcA")) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    filter(Filo_Number > 0) %>% 
+    mutate(x = ifelse(Plasmid %in% c("pDTi571", "pDTi500") & Cell_Line == "AX2", 1, 0)) %>% 
+    filter(x == 0) %>% 
+    ggplot(aes(x = Cell_Line, y = Filos_per_10um, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_AX2,
+              aes(y = Filoper10um_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA_AX2,
+                 aes(y = Filoper10um_Avg,
+                     group_by = Plasmid,
+                     ymin = Filoper10um_Avg - Filoper10um_sd,
+                     ymax = Filoper10um_Avg + Filoper10um_sd),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Average Filopodia / 10um") +
+    theme(axis.title.x = element_blank())
+)
+
+(mhcA_AX2_cortex= dicty_total %>%
+     filter(Cell_Line %in% c("AX2", "mhcA")) %>% 
+   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    mutate(x = ifelse(Plasmid %in% c("pDTi571", "pDTi500") & Cell_Line == "AX2", 1, 0)) %>% 
+    filter(x == 0) %>% 
+    ggplot(aes(x = Cell_Line, y = Cortex_Body, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_AX2,
+              aes(y = CortBody_Ratio_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA_AX2,
+                 aes(y = CortBody_Ratio_Avg,
+                     group_by = Plasmid,
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    geom_hline(yintercept = 1,
+               linetype ="dashed") +
+   scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                      labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    labs(y = "Cortex:Cell Body Ratio") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85)) +
+    ylim(0.5,2)
+)
+
+mhcA_AX2_filo = dicty_filo %>% 
+   mutate(x = ifelse(Plasmid %in% c("pDTi571", "pDTi500") & Cell_Line == "AX2", 1, 0)) %>% 
+    filter(x == 0)
+
+(mhcA_AX2_length = mhcA_AX2_filo %>%
+     filter(Cell_Line %in% c("AX2", "mhcA")) %>% 
+    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    group_by(Cell_Line, Plasmid) %>% 
+    ggplot(aes(x = Cell_Line,
+               y = Filo_Length,
+               color = Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_AX2,
+              aes(y = Filo_Length_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data = mhcA_AX2,
+                 aes(y = Filo_Length_Avg,
+                     group_by = Plasmid,
+                     ymin = Filo_Length_Avg - Filo_Length_SD,
+                     ymax = Filo_Length_Avg + Filo_Length_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
+    labs(y = "Filopodia Length (um)",
+         x = "Cell Line")
+)
+
+(mhcA_AX2_tipint = mhcA_AX2_filo %>%
+     filter(Cell_Line %in% c("AX2", "mhcA")) %>% 
+    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+    group_by(Cell_Line, Plasmid) %>% 
+    ggplot(aes(x = Cell_Line,
+               y = Filo_Body_Int,
+               color = Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_AX2,
+              aes(y = Tip_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data = mhcA_AX2,
+                 aes(y = Tip_Avg,
+                     group_by = Plasmid,
+                     ymin = Tip_Avg - Tip_SD,
+                     ymax = Tip_Avg + Tip_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel", "Parallel"),
+                         values = c("#00ba39", "#609cff", "#f8766d")) +
+    theme(axis.title.x = element_blank()) +
+    labs(y = "Filopodia Tip:Cell Body Intensity",
+         x = "Cell Line")
+)
+```
+## pDTi516 v pDTi571 v pDTi557 v pDTi500
+```{r}
+mhcA_G120 = mytable_mhcA %>% 
+  filter(Cell_Line  %in% c("G120", "mhcA"))
+
+(mhcA_G120_fxnfilo = dicty_total %>%
+    filter(Cell_Line %in% c("G120", "mhcA")) %>% 
+    
+    ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_G120,
+              aes(y = FiloNum_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA_G120,
+                 aes(y = FiloNum_Avg,
+                     group_by = Plasmid,
+                     ymin = FiloNum_Avg - FiloNum_SD,
+                     ymax = FiloNum_Avg + FiloNum_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+       scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                          labels = c("FL DdMyo7", "Antiparallel","Parallel mNG", "Parallel GFP"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
+    labs(y = "Average Filopodia Per Cell") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85))
+)
+
+(mhcA_G120_fxnfiloper10um = dicty_total %>%
+    filter(Cell_Line %in% c("G120", "mhcA")) %>% 
+    filter(Filo_Number > 0) %>% 
+    ggplot(aes(x = Cell_Line, y = Filos_per_10um, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_G120,
+              aes(y = Filoper10um_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA_G120,
+                 aes(y = Filoper10um_Avg,
+                     group_by = Plasmid,
+                     ymin = Filoper10um_Avg - Filoper10um_sd,
+                     ymax = Filoper10um_Avg + Filoper10um_sd),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+       scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                          labels = c("FL DdMyo7", "Antiparallel","Parallel mNG", "Parallel GFP"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
+    labs(y = "Average Filopodia / 10um") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.75,0.85))
+)
+
+(mhcA_G120_cortex= dicty_total %>%
+     filter(Cell_Line %in% c("G120", "mhcA")) %>% 
+    ggplot(aes(x = Cell_Line, y = Cortex_Body, color =Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_G120,
+              aes(y = CortBody_Ratio_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data =mhcA_G120,
+                 aes(y = CortBody_Ratio_Avg,
+                     group_by = Plasmid,
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    geom_hline(yintercept = 1,
+               linetype ="dashed") +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel","Parallel mNG", "Parallel GFP"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
+    labs(y = "Cortex:Cell Body Ratio") +
+    theme(axis.title.x = element_blank(),
+          legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
+    ylim(0.5,2)
+)
+
+mhcA_G120_filo = dicty_filo %>% 
+  filter(Cell_Line %in% c("G120", "mhcA"))
+
+(mhcA_G120_length = mhcA_G120_filo %>%
+     filter(Cell_Line %in% c("G120", "mhcA")) %>% 
+    group_by(Cell_Line, Plasmid) %>% 
+    ggplot(aes(x = Cell_Line,
+               y = Filo_Length,
+               color = Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_G120,
+              aes(y = Filo_Length_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data = mhcA_G120,
+                 aes(y = Filo_Length_Avg,
+                     group_by = Plasmid,
+                     ymin = Filo_Length_Avg - Filo_Length_SD,
+                     ymax = Filo_Length_Avg + Filo_Length_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel","Parallel mNG", "Parallel GFP"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
+      theme(axis.title.x = element_blank(),
+            legend.box.background = element_rect(color = "black"),
+          legend.position = c(0.9,0.85)) +
+    labs(y = "Filopodia Length (um)",
+         x = "Cell Line")
+)
+
+(mhcA_G120_tipint = mhcA_G120_filo %>%
+     filter(Cell_Line %in% c("G120", "mhcA")) %>% 
+    group_by(Cell_Line, Plasmid) %>% 
+    ggplot(aes(x = Cell_Line,
+               y = Filo_Body_Int,
+               color = Plasmid)) +
+    ggforce::geom_sina(scale =F) +
+   geom_point(data = mhcA_G120,
+              aes(y = Tip_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  alpha = 0.5,
+                  size = 1.5) +
+   geom_errorbar(data = mhcA_G120,
+                 aes(y = Tip_Avg,
+                     group_by = Plasmid,
+                     ymin = Tip_Avg - Tip_SD,
+                     ymax = Tip_Avg + Tip_SD),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 alpha = 0.5,
+                 size = 1,
+                 width = 0.2) +
+    scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
+                       labels = c("FL DdMyo7", "Antiparallel","Parallel mNG", "Parallel GFP"),
+                         values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
+      theme(axis.title.x = element_blank()) +
+    labs(y = "Filopodia Tip:Cell Body Intensity",
+         x = "Cell Line")
+)
+
+```
+
+
+# ggplots of all conditions together 
 
 ```{r}
 # GGplots of Data 
@@ -506,7 +1184,7 @@ G120_filo = dicty_filo %>%
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
-    filter(Filo_Number > 0 & Filo_Number <30) %>% 
+    
     ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
     ggforce::geom_sina(scale = F) +
    geom_point(data = mytable_actin,
@@ -535,7 +1213,7 @@ G120_filo = dicty_filo %>%
 (filo_per_cell_mhcA = dicty_total %>%
    filter(Cell_Line %in% c("AX2", "G120", "mhcA")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
-    filter(Filo_Number > 0 & Filo_Number <30) %>% 
+    
     ggplot(aes(x = Cell_Line, y = Filo_Number, color = Plasmid)) +
     ggforce::geom_sina(scale = F) +
    geom_point(data = mytable_mhcA,
@@ -679,7 +1357,7 @@ G120_filo = dicty_filo %>%
                  width = 0.4) +
     scale_color_manual(breaks = c("pDTi516", "pDTi571","pDTi557", "pDTi500"),
                          values = c("#00ba39", "#609cff","#FF00FF", "#f8766d")) +
-    labs(y = "Filopodia Length (um)",
+    labs(y = "Filopodia Tip:Cell Body Intensity",
          x = "Cell Line ")
 )
 ```
@@ -690,7 +1368,7 @@ G120_filo = dicty_filo %>%
 (filo_per_cell_actin = dicty_total %>%
    filter(Cell_Line %in% c("AX2", "G120", "VASP", "dDia2")) %>% 
     group_by(Cell_Line, Plasmid) %>% 
-    filter(Filo_Number > 0 & Filo_Number <30) %>% 
+    
     ggplot(aes(x = Cell_Line, y = Filo_Number, color =Plasmid)) +
     ggforce::geom_sina(scale = F) +
    geom_point(data = mytable_actin,
