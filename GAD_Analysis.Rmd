@@ -3,6 +3,7 @@ library(tidyverse)
 library(readxl)
 library(ggprism)
 library(openxlsx)
+library(ggsignif)
 theme_set(theme_prism())
 ```
 
@@ -52,7 +53,7 @@ filo_length_details = dicty_filo %>%
             Tip_Avg = mean(Filo_Body_Int, na.rm = T),
             Tip_SE = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
             )
-mytable = cbind(totalcell_details, filopercell_details[4:7], filo_length_details[4:6])
+mytable = cbind(totalcell_details, filopercell_details[4:7], filo_length_details[4:7])
 write.xlsx(mytable, file = "GAD_MotMut_DataTable.xlsx")
 ```
 
@@ -96,7 +97,371 @@ TukeyHSD(tip_int_mod, "Plasmid")
                  position = position_dodge(width = 0.9),
                  color = "black",
                  size = 1,
-                 width = 0.2) 
+                 width = 0.2) +
+   ylim(0,50) +
+   labs(y = "Number of Filopodia Per Cell") +
+     theme(axis.title.x = element_blank(),
+          legend.position = "bottom") +
+  geom_signif(
+   comparisons = list(c("516", "m2")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 40
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m7")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 42
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m13")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 44
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m21")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 46
+ ) 
+)
+
+(enrich_gg = dicty_total %>%  
+  ggplot(aes(x = Plasmid, y = Cortex_Body, color = factor(Collection_Round))) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5)+
+  geom_point(data = mytable,
+              aes(y = CortBody_Ratio_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable,
+                 aes(y = CortBody_Ratio_Avg,
+                     group_by = Plasmid,
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SE,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+   labs(y = "DdMyo7 Cortex:Cell Body") +
+  theme(axis.title.x = element_blank(),
+        legend.position = "bottom") +
+  geom_signif(
+   comparisons = list(c("m2", "m21")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black"
+ ) 
+)
+
+(length_gg = dicty_filo %>%  
+  ggplot(aes(x = Plasmid, y = Filo_Length, color = factor(Collection_Round))) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5)+
+  geom_point(data = mytable,
+              aes(y = Filo_Length_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable,
+                 aes(y = Filo_Length_Avg,
+                     group_by = Plasmid,
+                     ymin = Filo_Length_Avg - Filo_Length_SE,
+                     ymax = Filo_Length_Avg + Filo_Length_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+    ylim(0,14) +
+   labs(y = "Filopodia Length (um)") +
+     theme(axis.title.x = element_blank(),
+           legend.position = "bottom") +
+  geom_signif(
+   comparisons = list(c("516", "m2")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 10
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m7")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 11
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m13")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 12
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m21")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 13
+ )
+)
+
+(tip_gg = dicty_filo %>%  
+  ggplot(aes(x = Plasmid, y = Filo_Body_Int, color = factor(Collection_Round))) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5)+
+  geom_point(data = mytable,
+              aes(y = Tip_Avg,
+                  group_by = Plasmid),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable,
+                 aes(y = Tip_Avg,
+                     group_by = Plasmid,
+                     ymin = Tip_Avg - Tip_SE,
+                     ymax = Tip_Avg + Tip_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+   labs(y = "Tip:Body Intensity") +
+    ylim(0,14) +
+     theme(axis.title.x = element_blank(),
+           legend.position = "bottom")  +
+   geom_signif(
+   comparisons = list(c("516", "m2")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 10
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m7")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 11
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m13")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 12
+ ) +
+  geom_signif(
+   comparisons = list(c("516", "m21")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 13
+ ) +
+    geom_signif(
+   comparisons = list(c("m21", "m2")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 8
+ ) +
+    geom_signif(
+   comparisons = list(c("m21", "m7")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 7
+ ) +
+  geom_signif(
+   comparisons = list(c("m21", "m13")),
+   map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+   color = "black",
+   y_position = 6
+ ) 
+)
+
+ggsave(filo_gg, file = "Greta_Images/filo.tiff",
+       width = 5,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+ggsave(enrich_gg, file = "Greta_Images/enrich.tiff",
+       width = 5,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+ggsave(length_gg, file = "Greta_Images/length_gg.tiff",
+       width = 5,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+ggsave(tip_gg, file = "Greta_Images/tip_gg.tiff",
+       width = 5,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+
+```
+# Five stack vs 8 stack G1-20 pDTi516
+```{r}
+stack_total = read_excel(file.choose(), 
+                         sheet = "Cell_Stack") %>% 
+  mutate(Cell_Line = factor(Cell_Line)) %>% 
+  mutate(Stack = factor(Stack))
+
+
+stack_filo = read_excel(file.choose(), 
+                   sheet = "Filo_Stack") %>% 
+  mutate(Cell_Line = factor(Cell_Line)) %>% 
+  mutate(Stack = factor(Stack))
+```
+
+```{r}
+# Statistical Test (One-Way Anova)
+
+filo_stack_mod = aov(Filo_Number ~  Plasmid, data = stack_total)
+summary(filo_stack_mod)
+TukeyHSD(filo_stack_mod, "Plasmid")
+
+cortexstack_mod = aov(Cortex_Body ~  Plasmid, data = stack_total)
+summary(cortexstack_mod)
+TukeyHSD(cortexstack_mod, "Plasmid")
+
+filo_stack_mod = aov(Filo_Length ~  Plasmid, data = stack_filo)
+summary(filo_stack_mod)
+TukeyHSD(filo_stack_mod, "Plasmid")
+
+tip_stack_mod = aov(Filo_Body_Int ~  Plasmid,data = stack_filo)
+summary(tip_stack_mod)
+TukeyHSD(tip_stack_mod, "Plasmid")
+```
+
+```{r}
+stackcell_details = stack_total %>% 
+  mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
+  group_by(Cell_Line, Stack) %>% 
+  summarize(Total_Cells= n(),
+            Filopodia_Cells = sum(Filopodia == 1),
+            Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
+            CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
+            CortBody_Ratio_SE = sd(Cortex_Body, na.rm = T)/sqrt(Total_Cells)
+            )
+
+stackpercell_details = stack_total %>%
+  group_by(Cell_Line, Stack) %>%
+  filter(Filo_Number > 0) %>%
+  summarize(Total_Cells = n(),
+            FiloNum_Avg = mean(Filo_Number, na.rm = T),
+            FiloNum_SE = sd(Filo_Number, na.rm = T)/sqrt(Total_Cells),
+            Filoper10um_Avg = mean(Filos_per_10um, na.rm = T),
+            Filoper10um_SE = sd(Filos_per_10um, na.rm = T)/sqrt(Total_Cells)
+            )
+
+stack_length_details = stack_filo %>%
+  group_by(Cell_Line, Stack) %>%
+  summarize(Total_Cells = n(),
+            Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
+            Filo_Length_SE = sd(Filo_Length, na.rm = T)/sqrt(Total_Cells),
+            Tip_Avg = mean(Filo_Body_Int, na.rm = T),
+            Tip_SE = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
+            )
+mytable2 = cbind(stackcell_details, stackpercell_details[4:7], stack_length_details[4:7])
+#write.xlsx(mytable2, file = "GAD_MotMut_StackDiff.xlsx")
+```
+
+```{r}
+(stackfilo_gg = stack_total %>% 
+  filter(Filo_Number > 0) %>% 
+  ggplot(aes(x = Stack, y = Filo_Number)) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5,
+              color = "magenta")+
+  geom_point(data = mytable2,
+              aes(y = FiloNum_Avg,
+                  group_by = Stack),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable2,
+                 aes(y = FiloNum_Avg,
+                     group_by = Stack,
+                     ymin = FiloNum_Avg - FiloNum_SE,
+                     ymax = FiloNum_Avg + FiloNum_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+   labs(y = "Number of Filopodia Per Cell") +
+   guides(color = guide_legend(title = "Collection Round"))
+)
+
+(stackenrich_gg = stack_total %>%  
+  ggplot(aes(x = Stack, y = Cortex_Body)) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5,
+              color = "magenta")+
+  geom_point(data = mytable2,
+              aes(y = CortBody_Ratio_Avg,
+                  group_by = Stack),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable2,
+                 aes(y = CortBody_Ratio_Avg,
+                     group_by = Stack,
+                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SE,
+                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+   labs(y = "DdMyo7 Localization") +
+   guides(color = guide_legend(title = "Collection Round"))
+)
+
+(stacklength_gg = stack_filo %>%  
+  ggplot(aes(x = Stack, y = Filo_Length)) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5,
+              color = "magenta")+
+  geom_point(data = mytable2,
+              aes(y = Filo_Length_Avg,
+                  group_by = Stack),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable2,
+                 aes(y = Filo_Length_Avg,
+                     group_by = Stack,
+                     ymin = Filo_Length_Avg - Filo_Length_SE,
+                     ymax = Filo_Length_Avg + Filo_Length_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+   labs(y = "Filopodia Length (um)") +
+   guides(color = guide_legend(title = "Collection Round"))
+)
+
+(stacklength_gg = stack_filo %>%  
+  ggplot(aes(x = Stack, y = Filo_Body_Int)) +
+  geom_jitter(width = 0.25,
+              alpha = 0.5,
+              color = "magenta")+
+  geom_point(data = mytable2,
+              aes(y = Tip_Avg,
+                  group_by = Stack),
+                  position = position_dodge(width = 0.9),
+                  color = "black",
+                  size = 1.5) +
+  geom_errorbar(data =mytable2,
+                 aes(y = Tip_Avg,
+                     group_by = Stack,
+                     ymin = Tip_Avg - Tip_SE,
+                     ymax = Tip_Avg + Tip_SE),
+                 position = position_dodge(width = 0.9),
+                 color = "black",
+                 size = 1,
+                 width = 0.2) +
+   labs(y = "Tip:Body Intensity") +
+   guides(color = guide_legend(title = "Collection Round"))
 )
 ```
 
