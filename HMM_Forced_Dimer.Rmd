@@ -1,12 +1,14 @@
 # Loading in packages
 ```{r}
 library(tidyverse)
+library(broom.mixed)
 library(readxl)
 library(ggpubr)
 library(ggsignif)
 library(ggprism)
 library(openxlsx)
 theme_set(theme_prism())
+
 ```
 
 # Reading in Data
@@ -14,19 +16,15 @@ theme_set(theme_prism())
 # Reading in Data
 dicty_total = read_excel(file.choose(), 
                          sheet = "Total_Cell_Output") %>% 
-  mutate(Cell_Line = factor(Cell_Line, 
-                            levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
-  mutate(Plasmid = factor(Plasmid, 
-                          levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500"))) %>% 
+  mutate(Cell_Line = factor(Cell_Line,levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
+  mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500"))) %>% 
   mutate(Transformation = factor(Transformation))
 
 
 dicty_filo = read_excel(file.choose(), 
                    sheet = "Total_Filo_Output") %>% 
-  mutate(Cell_Line = factor(Cell_Line, 
-                            levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
-    mutate(Plasmid = factor(Plasmid, 
-                          levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500"))) %>% 
+  mutate(Cell_Line = factor(Cell_Line, levels=c("AX2", "G120", "dDia2","VASP","mhcA"))) %>% 
+  mutate(Plasmid = factor(Plasmid, levels = c("pDTi516", "pDTi571","pDTi557", "pDTi500"))) %>% 
   mutate(Transformation = factor(Transformation))
 
 ```
@@ -70,280 +68,224 @@ mytable_actin = cbind(totalcell_details[1:7],
                       filo_length_details[4:8]) %>%
   filter(Cell_Line %in% c("AX2", "G120", "dDia2", "VASP")) %>%
   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500"))
-mytable_actin
 
 mytable_mhcA = cbind(totalcell_details[1:7],
                      filopercell_details[4:8],
                      filo_length_details[4:8]) %>%
   filter(Cell_Line %in% c("AX2", "G120", "mhcA"))
-mytable_mhcA
 
 mytable_all = cbind(totalcell_details[1:7],
                       filopercell_details[4:8],
                       filo_length_details[4:8])
-
-
-totalcell_vasp = dicty_total %>% 
-  filter(ID %in% c("AC47", "PW23", "PW32", "PW33", "PW34")) %>% 
-  mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
-  group_by(ID) %>% 
-  summarize(Total_Cells= n(),
-            Filopodia_Cells = sum(Filopodia == 1),
-            Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
-            CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
-            CortBody_Ratio_SD = sd(Cortex_Body, na.rm = T)/sqrt(Total_Cells)
-            )
-
-filopercell_vasp = dicty_total %>%
-  filter(ID %in% c("AC47", "PW23", "PW32", "PW33", "PW34")) %>% 
-  group_by(ID) %>%
-  filter(Filo_Number > 0) %>%
-  summarize(Total_Cells = n(),
-            FiloNum_Avg = mean(Filo_Number, na.rm = T),
-            FiloNum_SD = sd(Filo_Number, na.rm = T)/sqrt(Total_Cells),
-            Median_FiloNum = median(Filo_Number, na.rm = T),
-            Filoper10um_Avg = mean(Filos_per_10um, na.rm = T),
-            Filoper10um_sd = sd(Filos_per_10um, na.rm = T)/sqrt(Total_Cells)
-            )
-
-filo_length_vasp = dicty_filo %>%
-  filter(ID %in% c("AC47", "PW23", "PW32", "PW33", "PW34")) %>% 
-  group_by(ID) %>%
-  summarize(Total_Cells = n(),
-            Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
-            Filo_Length_SD = sd(Filo_Length, na.rm = T)/sqrt(Total_Cells),
-            Filo_Length_Median = median(Filo_Length, na.rm = T),
-            Tip_Avg = mean(Filo_Body_Int, na.rm = T),
-            Tip_SD = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
-            )
-
-mytable_vasp =  cbind(totalcell_vasp,
-                      filopercell_vasp[3:7],
-                      filo_length_vasp[3:7])
-
 write.xlsx(mytable_all, file = "HMM_DataTable.xlsx")
+
+
+# # Table Summary of VASP Only
+# totalcell_vasp = dicty_total %>% 
+#   filter(ID %in% c("AC47", "PW23", "PW32", "PW33", "PW34")) %>% 
+#   mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
+#   group_by(ID) %>% 
+#   summarize(Total_Cells= n(),
+#             Filopodia_Cells = sum(Filopodia == 1),
+#             Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
+#             CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
+#             CortBody_Ratio_SD = sd(Cortex_Body, na.rm = T)/sqrt(Total_Cells)
+#             )
+# 
+# filopercell_vasp = dicty_total %>%
+#   filter(ID %in% c("AC47", "PW23", "PW32", "PW33", "PW34")) %>% 
+#   group_by(ID) %>%
+#   filter(Filo_Number > 0) %>%
+#   summarize(Total_Cells = n(),
+#             FiloNum_Avg = mean(Filo_Number, na.rm = T),
+#             FiloNum_SD = sd(Filo_Number, na.rm = T)/sqrt(Total_Cells),
+#             Median_FiloNum = median(Filo_Number, na.rm = T),
+#             Filoper10um_Avg = mean(Filos_per_10um, na.rm = T),
+#             Filoper10um_sd = sd(Filos_per_10um, na.rm = T)/sqrt(Total_Cells)
+#             )
+# 
+# filo_length_vasp = dicty_filo %>%
+#   filter(ID %in% c("AC47", "PW23", "PW32", "PW33", "PW34")) %>% 
+#   group_by(ID) %>%
+#   summarize(Total_Cells = n(),
+#             Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
+#             Filo_Length_SD = sd(Filo_Length, na.rm = T)/sqrt(Total_Cells),
+#             Filo_Length_Median = median(Filo_Length, na.rm = T),
+#             Tip_Avg = mean(Filo_Body_Int, na.rm = T),
+#             Tip_SD = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
+#             )
+# 
+# mytable_vasp =  cbind(totalcell_vasp,
+#                       filopercell_vasp[3:7],
+#                       filo_length_vasp[3:7])
+
+
 ```
 
 # Outlier Test
 ```{r, echo = FALSE}
-# # Rosner Outlier Test
-# filonum_outliers = EnvStats::rosnerTest(dicty_total_trim$Filo_Number,
-#                               k = 2)
+# # # Rosner Outlier Test
 # 
-# cortexcellbody_outliers = EnvStats::rosnerTest(dicty_total$Cortex_Body,
-#                                       k = 10)
+# df_total = dicty_total %>% 
+#   filter(Cell_Line == "AX2") %>% 
+#   filter(Plasmid == "pDTi516")
 # 
-# filolength_outliers = EnvStats::rosnerTest(dicty_filo$Filo_Length,
-#                                  k = 20)
+# df_filo = dicty_filo %>% 
+#   filter(Cell_Line == "AX2")%>% 
+#   filter(Plasmid == "pDTi516")
+# 
+# (a = EnvStats::rosnerTest(df_total$Filo_Number, k = 10))
+# (b = EnvStats::rosnerTest(df_total$Cortex_Body, k = 10))
+# (c = EnvStats::rosnerTest(df_filo$Filo_Length, k = 10))
+# (d = EnvStats::rosnerTest(df_filo$Filo_Body_Int, k = 20))
+
 ```
 
 # Statistical Tests
 ```{r, echo=FALSE}
-# Stats on variables
-# data_trim = dicty_total %>%
-#   filter(Cell_Line %in% c("mhcA"))
-# 
-# dicty_total_trim = dicty_total %>%
-#   group_by(Cell_Line, Plasmid) %>%
-#   filter(Filo_Number > 0) %>%
-#   filter(Cell_Line %in% c("mhcA"))
-# 
-# dicty_filo_trim = dicty_filo %>%
-#   filter(Cell_Line %in% c("mhcA"))
-# 
-# 
-# filo_num_mod = aov(Filo_Number ~  Plasmid, data = dicty_total_trim)
-# summary(filo_num_mod)
-# TukeyHSD(filo_num_mod, "Plasmid")
-# 
-# cortexcellbody_mod = aov(Cortex_Body ~  Plasmid, data = data_trim)
-# summary(cortexcellbody_mod)
-# TukeyHSD(cortexcellbody_mod, "Plasmid")
-# 
-# filo_length_mod = aov(Filo_Length ~  Plasmid, data = dicty_filo_trim)
-# summary(filo_length_mod)
-# TukeyHSD(filo_length_mod, "Plasmid")
-# 
-# tip_int_mod = aov(Filo_Body_Int ~  Plasmid, data = dicty_filo_trim)
-# summary(tip_int_mod)
-# TukeyHSD(tip_int_mod, "Plasmid")
+fit_model <- function(df, var_name) {
+  formula <- as.formula(paste0(var_name, " ~ Plasmid"))
+  model <- aov(formula, data = df)
+  model
+}
 
+posthoc_analysis <- function(model) {
+  TukeyHSD(model, "Plasmid")
+}
 
+var_filnum = "Filo_Number"
+var_cortex = "Cortex_Body"
+var_int = "Filo_Body_Int"
+var_length = "Filo_Length"
 
-## For Multiple Cell Lines
-# filo_num_mod = aov(Filo_Number ~ Cell_Line * Plasmid,
-#       data = dicty_total_trim)
-# TukeyHSD(filo_num_mod, "Cell_Line:Plasmid")
-# 
-# cortexcellbody_mod = aov(Cortex_Body ~ Cell_Line * Plasmid,
-#                          data = dicty_total_trim)
-# TukeyHSD(cortexcellbody_mod, "Cell_Line:Plasmid")
-# 
-# filo_length_mod = aov(Filo_Length ~ Cell_Line * Plasmid,
-#                       data = dicty_filo_trim)
-# TukeyHSD(filo_length_mod, "Cell_Line:Plasmid")
-# 
-# tip_int_mod = aov(Filo_Body_Int ~ Cell_Line * Plasmid,
-#                   data = dicty_filo_trim)
-# TukeyHSD(tip_int_mod, "Cell_Line:Plasmid")
-# 
-# filoper10_mod = aov(Filos_per_10um ~ Cell_Line * Plasmid,
-#                   data = dicty_total_trim)
-# summary(filoper10_mod)
-# TukeyHSD(tip_int_mod, "Cell_Line:Plasmid")
+filo_num_model = dicty_total %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+  filter(Filo_Number > 0) %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_filnum)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
 
+cortex_model = dicty_total %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_cortex)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
 
+filo_int_model = dicty_filo %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_int)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
 
-## For VASP i516 investigation
-vasp_i516 = dicty_total %>%
-  filter(Cell_Line %in% c("VASP")) %>%
-  filter(Plasmid == "pDTi516")
+filo_len_model = dicty_filo %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_length)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
 
-i516 = dicty_total %>%
-  filter(Cell_Line %in% c("VASP", "AX2", "G120")) %>%
-  filter(Plasmid == "pDTi516")
-
-filo_num_mod = aov(Filo_Number ~  ID, data = vasp_i516)
-summary(filo_num_mod)
-TukeyHSD(filo_num_mod, "ID")
-
-filo_num_mod = aov(Filo_Number ~  Cell_Line, data = i516)
-summary(filo_num_mod)
-TukeyHSD(filo_num_mod, "Cell_Line")
-
-
-# ## For AX2, G120 and mhcA i516 investigation
-# i516 = dicty_total %>%
-#   filter(Cell_Line %in% c("VASP","AX2", "G120")) %>%
-#   filter(Plasmid == "pDTi516")
-# 
-# filo_num_mod = aov(Filo_Number ~ Cell_Line, data = vasp_i516)
-# summary(filo_num_mod)
-# TukeyHSD(filo_num_mod, "Cell_Line")
-# 
-# filo_per_mod = aov(Filos_per_10um ~ Cell_Line , data = vasp_i516)
-# summary(filo_per_mod)
-# TukeyHSD(filo_per_mod, "Cell_Line")
-
+filo_num_model$model_summary
+filo_num_model$posthoc
+cortex_model$model_summary
+cortex_model$posthoc
+filo_int_model$model_summary
+filo_int_model$posthoc
+filo_len_model$model_summary
+filo_len_model$posthoc
 ```
 
 # Graphing 
 
-## AX2 Graphs
+## GGPlot Template
+```{r}
+# color_blind = c("#00FFFF", "#FF00FF", "#FFFF00")
+color_blind = c("#E66100", "#5D3A9B", "#994F00")
+
+make_gg = function(df, variable){
+  df %>% 
+    ggplot(aes(x = Plasmid, y = !!sym(variable), fill = Plasmid)) +
+    ggforce::geom_sina() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank()) +
+    scale_fill_manual(values = color_blind) +
+    scale_x_discrete(breaks = c("pDTi516","pDTi576","pDTi577"),
+                    labels = c("WT", 
+                               "Deafness Mutant", 
+                               "Recoding Mutant"),
+                    guide = guide_axis(n.dodge = 2)) 
+}
+
+make_gg_filo = function(df, variable){
+  df %>% 
+    filter(variable > 0) %>% 
+    ggplot(aes(x = Plasmid, y = !!sym(variable), fill = Plasmid)) +
+    ggforce::geom_sina() +
+    theme(legend.position = "none",
+          axis.title.x = element_blank()) +
+    scale_fill_manual(values = color_blind) +
+    scale_x_discrete(breaks = c("pDTi516","pDTi576","pDTi577"),
+                    labels = c("WT", 
+                               "Deafness Mutant", 
+                               "Recoding Mutant"),
+                    guide = guide_axis(n.dodge = 2)) 
+}
+
+# ggsave(test,file = "test.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.2,
+#        dpi = 600)
+
+```
 
 ```{r}
-ax2 = mytable_actin %>% 
-  filter(Cell_Line == "AX2")
 
-(ax2_fxnfilo = dicty_total %>%
-   filter(Cell_Line %in% c("AX2")) %>% 
-    filter(Filo_Number >0) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Number, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = ax2,
-              aes(y = FiloNum_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =ax2,
-                 aes(y = FiloNum_Avg,,
-                     ymin = FiloNum_Avg - FiloNum_SD,
-                     ymax = FiloNum_Avg + FiloNum_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("AX2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "Average Filopodia Per Cell") +
+ax2_total = dicty_total %>% 
+  filter(Cell_Line == "AX2") %>% 
+  filter(Filo_Number < 20) 
+ax2_filo = dicty_filo %>% 
+  filter(Cell_Line == "AX2") %>% 
+  filter(Filo_Body_Int <20)
+
+ax2_fxnfilo = make_gg_filo(ax2_total,"AX2", "Filo_Number")
+(ax2_fxnfilo = ax2_fxnfilo +
+  labs(y = "Average Filopodia Per Cell") +
+  ylim(0,40) +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
-     color = "black"
+     color = "black",
+    y_position = 16
    ) +
    geom_signif(
      comparisons = list(c("pDTi516", "pDTi500")),
     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
      color = "black",
-     y_position = 32
+     y_position = 18
    )
 )
 
-(ax2_cortex = dicty_total %>%
-   filter(Cell_Line %in% c("AX2")) %>% 
-    ggplot(aes(x = Plasmid, y = Cortex_Body, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = ax2,
-              aes(y = CortBody_Ratio_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =ax2,
-                 aes(y = FiloNum_Avg,,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("AX2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-    ylim(0,2.5)+
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "DdMyo7 Localization") +
+ax2_cortex = make_gg(ax2_total,"AX2", "Cortex_Body")
+(ax2_cortex = ax2_cortex +
+   labs(y = "Cortex:Cell Body Ratio") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
      map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
      color = "black",
-     y_position = 2
+     y_position = 1.8
    )
 )
 
-(ax2_length = dicty_filo %>%
-   filter(Cell_Line %in% c("AX2")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Length, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = ax2,
-              aes(y = Filo_Length_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =ax2,
-                 aes(y = FiloNum_Avg,,
-                     ymin = Filo_Length_Avg - Filo_Length_SD,
-                     ymax = Filo_Length_Avg + Filo_Length_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("AX2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+ax2_length = make_gg(ax2_filo,"AX2", "Filo_Length")
+(ax2_length = ax2_length +
    labs(y = "Filopodial Length (um)") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
@@ -352,449 +294,207 @@ ax2 = mytable_actin %>%
    )
 )
 
-(ax2_tip = dicty_filo %>%
-   filter(Cell_Line %in% c("AX2")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Body_Int, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = ax2,
-              aes(y = Tip_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =ax2,
-                 aes(y = Tip_Avg,
-                     ymin = Tip_Avg - Tip_SD,
-                     ymax = Tip_Avg + Tip_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("AX2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+ax2_tip = make_gg(ax2_filo,"AX2","Filo_Body_Int")
+(ax2_tip = ax2_tip +
    labs(y = "Tip:Body Intensity") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
      map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
      color = "black",
-     y_position = 28
+     y_position = 20
    ) +
    geom_signif(
      comparisons = list(c("pDTi516", "pDTi500")),
      map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
-     color = "black"
+     color = "black",
+     y_position = 22
    )
 )
+ggsave(ax2_fxnfilo,file = "HMM_Images/ax2_fxnfilo.tiff",
+       width = 4,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+ggsave(ax2_cortex,file = "HMM_Images/ax2_cortex.tiff",
+       width = 4,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+ggsave(ax2_length,file = "HMM_Images/ax2_length.tiff",
+       width = 4,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
+ggsave(ax2_tip,file = "HMM_Images/ax2_tip.tiff",
+       width = 4,
+       height = 5,
+       units = "cm",
+       scaling = 0.35,
+       dpi = 600)
 
-ax2 = list(ax2_fxnfilo,ax2_cortex,ax2_length,ax2_tip)
-
-ggsave(ax2_fxnfilo,file = "HMM_Images/AX2_filo.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
-ggsave(ax2_cortex,file = "HMM_Images/AX2_cortex.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
-ggsave(ax2_length,file = "HMM_Images/AX2_length.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
-ggsave(ax2_tip,file = "HMM_Images/AX2_tip.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
 ```
-
-
-
-
 
 ## G1-20
 ```{r}
-G120 = mytable_actin %>% 
-  filter(Cell_Line == "G120")
+G120_total = dicty_total %>% 
+  filter(Cell_Line == "G120") %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500"))
 
-(G120_fxnfilo = dicty_total %>%
-   filter(Cell_Line %in% c("G120")) %>% 
-    filter(Filo_Number >0) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Number, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = G120,
-              aes(y = FiloNum_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =G120,
-                 aes(y = FiloNum_Avg,,
-                     ymin = FiloNum_Avg - FiloNum_SD,
-                     ymax = FiloNum_Avg + FiloNum_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("G120 Cells") +
-    ylim(0,40) +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "Average Filopodia Per Cell") +
+G120_filo = dicty_filo %>% 
+  filter(Cell_Line == "G120") %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
+  filter(Filo_Body_Int <10)
+
+G120_fxnfilo = make_gg_filo(G120_total, "G120", "Filo_Number")
+(G120_fxnfilo = G120_fxnfilo +
+   labs(y = "Avg Filopodia Per Cell") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+     map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
      y_position = 32
    ) +
    geom_signif(
      comparisons = list(c("pDTi516", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
      y_position = 35
    )
 )
 
-(G120_cortex = dicty_total %>%
-   filter(Cell_Line %in% c("G120")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Cortex_Body, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = G120,
-              aes(y = CortBody_Ratio_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =G120,
-                 aes(y = FiloNum_Avg,,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("G120 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-    ylim(0,2.5)+
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "DdMyo7 Localization")
-)
+# G120_cortex = make_gg(G120_total, "G120", "Cortex_Body")
+# (G120_cortex = G120_cortex +
+#   labs(y = "Cortex:Cell Body Ratio")
+# )
 
-(G120_length = dicty_filo %>%
-   filter(Cell_Line %in% c("G120")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Length, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = G120,
-              aes(y = Filo_Length_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =G120,
-                 aes(y = FiloNum_Avg,,
-                     ymin = Filo_Length_Avg - Filo_Length_SD,
-                     ymax = Filo_Length_Avg + Filo_Length_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("G120 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+G120_length = make_gg(G120_filo, "G120", "Filo_Length")
+(G120_length = G120_length +
    labs(y = "Filopodial Length (um)") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
      y_position = 10.5
    ) +
     geom_signif(
      comparisons = list(c("pDTi571", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black"
    ) +
    geom_signif(
      comparisons = list(c("pDTi516", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+     map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
      y_position = 11.5
    )
 )
 
-(G120_tip = dicty_filo %>%
-   filter(Cell_Line %in% c("G120")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Body_Int, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = G120,
-              aes(y = Tip_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =G120,
-                 aes(y = Tip_Avg,
-                     ymin = Tip_Avg - Tip_SD,
-                     ymax = Tip_Avg + Tip_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("G120 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+G120_tip = make_gg(G120_filo, "G120", "Filo_Body_Int")
+(G120_tip = G120_tip +
    labs(y = "Tip:Body Intensity") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black"
    ) +
    geom_signif(
      comparisons = list(c("pDTi516", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
-     y_position = 17
+     y_position = 9
    )
 )
 
-G120 = list(G120_fxnfilo,G120_cortex,G120_length,G120_tip)
 
 ggsave(G120_fxnfilo,file = "HMM_Images/G120_filo.tiff",
-       width = 5,
-       height = 5,
+       width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
-ggsave(G120_cortex,file = "HMM_Images/G120_cortex.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
+# ggsave(G120_cortex,file = "HMM_Images/G120_cortex.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
 ggsave(G120_length,file = "HMM_Images/G120_length.tiff",
-       width = 5,
-       height = 5,
+        width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ggsave(G120_tip,file = "HMM_Images/G120_tip.tiff",
-       width = 5,
-       height = 5,
+          width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ```
 
 ## Vasp 
 ```{r}
-VASP = mytable_actin %>% 
+VASP_total = dicty_total %>% 
+  filter(Cell_Line == "VASP") %>% 
+  filter(Filo_Number < 10)
+
+VASP_filo = dicty_filo %>% 
   filter(Cell_Line == "VASP")
 
-(VASP_fxnfilo = dicty_total %>%
-  filter(Filo_Number >0) %>% 
-   filter(Cell_Line %in% c("VASP")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Number, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = VASP,
-              aes(y = FiloNum_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =VASP,
-                 aes(y = FiloNum_Avg,,
-                     ymin = FiloNum_Avg - FiloNum_SD,
-                     ymax = FiloNum_Avg + FiloNum_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("VASP Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+VASP_fxnfilo = make_gg_filo(VASP_total, "VASP", "Filo_Number")
+(VASP_fxnfilo = VASP_fxnfilo +
+  geom_hline(yintercept = wt_filo) +
    labs(y = "Average Filopodia Per Cell")
 )
 
-(VASP_cortex = dicty_total %>%
-   filter(Cell_Line %in% c("VASP")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Cortex_Body, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = VASP,
-              aes(y = CortBody_Ratio_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =VASP,
-                 aes(y = FiloNum_Avg,,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("VASP Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-    ylim(0,2.5)+
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "DdMyo7 Localization") +
-   geom_signif(
-     comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
-     color = "black"
-   )
-)
+# VASP_cortex = make_gg(VASP_total,"VASP","Cortex_Body")
+# (VASP_cortex = VASP_cortex +
+#    labs(y = "Cortex:Cell Body Ratio") +
+#    geom_signif(
+#      comparisons = list(c("pDTi571", "pDTi516")),
+#      map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+#      color = "black"
+#    )
+# )
 
-(VASP_length = dicty_filo %>%
-   filter(Cell_Line %in% c("VASP")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Length, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = VASP,
-              aes(y = Filo_Length_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =VASP,
-                 aes(y = FiloNum_Avg,,
-                     ymin = Filo_Length_Avg - Filo_Length_SD,
-                     ymax = Filo_Length_Avg + Filo_Length_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("VASP Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+VASP_length = make_gg(VASP_filo, "VASP", "Filo_Length")
+(VASP_length = VASP_length +
+    geom_hline(yintercept = wt_len) +
    labs(y = "Filopodial Length (um)")
 )
 
-(VASP_tip = dicty_filo %>%
-   filter(Cell_Line %in% c("VASP")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Body_Int, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = VASP,
-              aes(y = Tip_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =VASP,
-                 aes(y = Tip_Avg,
-                     ymin = Tip_Avg - Tip_SD,
-                     ymax = Tip_Avg + Tip_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("VASP Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+VASP_tip = make_gg(VASP_filo, "VASP", "Filo_Body_Int") 
+(VASP_tip = VASP_tip +
+    geom_hline(yintercept = wt_int) +
    labs(y = "Tip:Body Intensity")
 )
 
-VASP = list(VASP_fxnfilo,VASP_cortex,VASP_length,VASP_tip)
-
 ggsave(VASP_fxnfilo,file = "HMM_Images/VASP_filo.tiff",
-       width = 5,
-       height = 5,
+         width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
-ggsave(VASP_cortex,file = "HMM_Images/VASP_cortex.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
+# ggsave(VASP_cortex,file = "HMM_Images/VASP_cortex.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
 ggsave(VASP_length,file = "HMM_Images/VASP_length.tiff",
-       width = 5,
-       height = 5,
+         width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ggsave(VASP_tip,file = "HMM_Images/VASP_tip.tiff",
-       width = 5,
-       height = 5,
+            width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ```
 
@@ -900,373 +600,169 @@ ggsave(vasp_i516,file = "HMM_Images/vasp_i516.tiff",
 
 ## dDia2 
 ``` {r}
-dDia2 = mytable_actin %>% 
-  filter(Cell_Line == "dDia2" )
+dDia2_total = dicty_total %>% 
+  filter(Cell_Line == "dDia2") %>% 
+  filter(Filo_Number < 40)
 
-(dDia2_fxnfilo = dicty_total %>%
-   filter(Cell_Line %in% c("dDia2", "dDia2")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Number, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = dDia2,
-              aes(y = FiloNum_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =dDia2,
-                 aes(y = FiloNum_Avg,,
-                     ymin = FiloNum_Avg - FiloNum_SD,
-                     ymax = FiloNum_Avg + FiloNum_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("dDia2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+dDia2_filo = dicty_filo %>% 
+  filter(Cell_Line == "dDia2")
+
+dDia2_fxnfilo = make_gg(dDia2_total, "dDia2", "Filo_Number")
+(dDia2_fxnfilo = dDia2_fxnfilo +
    labs(y = "Average Filopodia Per Cell") +
+    geom_hline(yintercept = wt_filo) +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
-     y_position = 48
+     y_position = 38
    ) +
    geom_signif(
      comparisons = list(c("pDTi516", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
-     y_position = 50
+     y_position = 41
    )
 )
 
-(dDia2_cortex = dicty_total %>%
-   filter(Cell_Line %in% c("dDia2")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Cortex_Body, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = dDia2,
-              aes(y = CortBody_Ratio_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =dDia2,
-                 aes(y = FiloNum_Avg,,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-    ylim(0,1.7) +
-   ggtitle("dDia2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "DdMyo7 Localization") 
-)
+# dDia2_cortex = make_gg(dDia2_total, "dDia2", "Cortex_Body")
+# (dDia2_cortex = dDia2_cortex + 
+#    labs(y = "DdMyo7 Localization") 
+# )
 
-(dDia2_length = dicty_filo %>%
-   filter(Cell_Line %in% c("dDia2")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Length, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = dDia2,
-              aes(y = Filo_Length_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =dDia2,
-                 aes(y = FiloNum_Avg,,
-                     ymin = Filo_Length_Avg - Filo_Length_SD,
-                     ymax = Filo_Length_Avg + Filo_Length_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("dDia2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+dDia2_length = make_gg(dDia2_filo, "dDia2", "Filo_Length")
+(dDia2_length = dDia2_length +
+  geom_hline(yintercept = wt_len) +
    labs(y = "Filopodial Length (um)") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+       map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black"
    ) 
 )
 
-(dDia2_tip = dicty_filo %>%
-   filter(Cell_Line %in% c("dDia2")) %>% 
-   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Body_Int, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = dDia2,
-              aes(y = Tip_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =dDia2,
-                 aes(y = Tip_Avg,
-                     ymin = Tip_Avg - Tip_SD,
-                     ymax = Tip_Avg + Tip_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("dDia2 Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+dDia2_tip = make_gg(dDia2_filo, "dDia2", "Filo_Body_Int")
+(dDia2_tip = dDia2_tip +
    labs(y = "Tip:Body Intensity") +
+    # ylim(0,15) +
+    scale_y_continuous(breaks = seq(0, 15, by = 2.5)) +
+  geom_hline(yintercept = wt_int) +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+        map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
-     y_position = 12
+     y_position = 11
    ) +
     geom_signif(
      comparisons = list(c("pDTi571", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+      map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      color = "black",
-     y_position = 11
+     y_position = 10
    ) 
 )
 
 
 ggsave(dDia2_fxnfilo,file = "HMM_Images/dDia2_filo.tiff",
-       width = 5,
-       height = 5,
+        width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
-ggsave(dDia2_cortex,file = "HMM_Images/dDia2_cortex.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
+# ggsave(dDia2_cortex,file = "HMM_Images/dDia2_cortex.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
 ggsave(dDia2_length,file = "HMM_Images/dDia2_length.tiff",
-       width = 5,
-       height = 5,
+        width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ggsave(dDia2_tip,file = "HMM_Images/dDia2_tip.tiff",
-       width = 5,
-       height = 5,
+            width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ```
 
 ## mhcA null cells
 ```{r}
-mhcA = mytable_mhcA %>% 
+mhcA_filo = dicty_filo %>% 
   filter(Cell_Line %in% c("mhcA")) %>% 
   filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) 
+mhcA_total = dicty_total %>% 
+  filter(Cell_Line %in% c("mhcA")) %>% 
+  filter(Filo_Number < 30) %>% 
+  filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) 
 
-(mhcA_fxnfilo = dicty_total %>%
-   filter(Cell_Line %in% c("mhcA")) %>% 
-    filter(Filo_Number > 0) %>% 
-    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Number, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = mhcA,
-              aes(y = FiloNum_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =mhcA,
-                 aes(y = FiloNum_Avg,,
-                     ymin = FiloNum_Avg - FiloNum_SD,
-                     ymax = FiloNum_Avg + FiloNum_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("mhcA Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+mhcA_fxnfilo = make_gg(mhcA_total, "mhcA", "Filo_Number")
+(mhcA_fxnfilo = mhcA_fxnfilo +
+    geom_hline(yintercept = wt_filo) +
    labs(y = "Average Filopodia Per Cell") 
 )
 
-(mhcA_cortex = dicty_total %>%
-   filter(Cell_Line %in% c("mhcA")) %>% 
-    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Cortex_Body, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = mhcA,
-              aes(y = CortBody_Ratio_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =mhcA,
-                 aes(y = FiloNum_Avg,,
-                     ymin = CortBody_Ratio_Avg - CortBody_Ratio_SD,
-                     ymax = CortBody_Ratio_Avg + CortBody_Ratio_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("mhcA Cells") +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-    ylim(0,2.1)+
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
-   labs(y = "DdMyo7 Localization") +
-   geom_signif(
-     comparisons = list(c("pDTi571", "pDTi516")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
-     color = "black",
-     y_position = 1.5
-   ) +
-    geom_signif(
-     comparisons = list(c("pDTi571", "pDTi500")),
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
-     color = "black",
-     y_position = 1.9
-     )
-)
+# mhcA_cortex = make_gg(mhcA_total, "mhcA", "Cortex_Body")
+# (mhcA_cortex = mhcA_cortex +
+#    ggtitle("mhcA") +
+#    labs(y = "Cortex:Cell Body Ratio") +
+#    geom_signif(
+#      comparisons = list(c("pDTi571", "pDTi516")),
+#           map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
+#      color = "black",
+#      y_position = 1.5
+#    ) +
+#     geom_signif(
+#      comparisons = list(c("pDTi571", "pDTi500")),
+#           map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
+#      color = "black",
+#      y_position = 1.6
+#      )
+# )
 
-(mhcA_length = dicty_filo %>%
-   filter(Cell_Line %in% c("mhcA")) %>% 
-    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Length, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = mhcA,
-              aes(y = Filo_Length_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =mhcA,
-                 aes(y = FiloNum_Avg,,
-                     ymin = Filo_Length_Avg - Filo_Length_SD,
-                     ymax = Filo_Length_Avg + Filo_Length_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("mhcA Cells") +
-    ylim(0,16) +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+mhcA_length = make_gg(mhcA_filo, "mhcA", "Filo_Length")
+(mhcA_length = mhcA_length +  
+    geom_hline(yintercept = wt_len) +
    labs(y = "Filopodial Length (um)")
 )
 
-(mhcA_tip = dicty_filo %>%
-   filter(Cell_Line %in% c("mhcA")) %>% 
-    filter(Plasmid %in% c("pDTi516", "pDTi571", "pDTi500")) %>% 
-    ggplot(aes(x = Plasmid, y = Filo_Body_Int, color = Transformation)) +
-    geom_jitter(width = 0.15,
-              alpha = 0.5) +
-   geom_point(data = mhcA,
-              aes(y = Tip_Avg),
-                  position = position_dodge(width = 0.9),
-                  color = "black",
-                  size = 1.75) +
-   geom_errorbar(data =mhcA,
-                 aes(y = Tip_Avg,
-                     ymin = Tip_Avg - Tip_SD,
-                     ymax = Tip_Avg + Tip_SD),
-                 position = position_dodge(width = 0.9),
-                 color = "black",
-                 size = 1,
-                 width = 0.15) +
-   ggtitle("mhcA Cells") +
-    ylim(0,18) +
-   theme(axis.title.x = element_blank(),
-         legend.position = "bottom") +
-   scale_x_discrete(breaks = c("pDTi516",
-                               "pDTi571",
-                               "pDTi500"),
-                    labels = c("FL DdMyo7",
-                             "Antiparallel Dimer", 
-                             "Parallel Dimer GFP"),
-                    guide = guide_axis(n.dodge = 2)) +
+mhcA_tip = make_gg(mhcA_filo, "mhcA", "Filo_Body_Int")
+( mhcA_tip = mhcA_tip +
+    geom_hline(yintercept = wt_int) +
    labs(y = "Tip:Body Intensity") +
    geom_signif(
      comparisons = list(c("pDTi571", "pDTi516")),
      color = "black",
-     map_signif_level=c(" "=0.001," "=0.01, " "=0.05, " "=2),
+          map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "ns"=2),
      y_position = 12
    )
 )
 
 ggsave(mhcA_fxnfilo,file = "HMM_Images/mhcA_filo.tiff",
-       width = 5,
-       height = 5,
+             width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
-ggsave(mhcA_cortex,file = "HMM_Images/mhcA_cortex.tiff",
-       width = 5,
-       height = 5,
-       units = "cm",
-       scaling = 0.35,
-       dpi = 600)
+# ggsave(mhcA_cortex,file = "HMM_Images/mhcA_cortex.tiff",
+#            width = 6,
+#        height = 8,
+#        units = "cm",
+#        scaling = 0.8,
+#        dpi = 600)
 ggsave(mhcA_length,file = "HMM_Images/mhcA_length.tiff",
-       width = 5,
-       height = 5,
+              width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ggsave(mhcA_tip,file = "HMM_Images/mhcA_tip.tiff",
-       width = 5,
-       height = 5,
+              width = 6,
+       height = 8,
        units = "cm",
-       scaling = 0.35,
+       scaling = 0.8,
        dpi = 600)
 ```
 
