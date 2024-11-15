@@ -1,0 +1,220 @@
+# Loading in packages
+```{r}
+library(tidyverse)
+library(broom.mixed)
+library(readxl)
+library(ggpubr)
+library(ggsignif)
+library(ggprism)
+library(openxlsx)
+theme_set(theme_prism())
+```
+# Reading in Data
+```{r}
+df_cell = read_excel(file.choose(),
+                       sheet = "Total_Cell_Output") %>% 
+  mutate(Transformation = factor(Transformation))
+
+df_filo = read_excel(file.choose(),
+                     sheet = "Total_Filo_Output") %>% 
+  mutate(Transformation = factor(Transformation))
+```
+
+# Generating Summary Statistic Tables
+```{r}
+t1 = df_cell %>% 
+    mutate(Filopodia = ifelse(Filo_Number > 0,1,0)) %>%
+  group_by(Cell_Line, Plasmid) %>% 
+  summarize(Total_Cells= n(),
+            Filopodia_Cells = sum(Filopodia == 1),
+            Filopodia_Proportion = (Filopodia_Cells / Total_Cells) * 100,
+            CortBody_Ratio_Avg = mean(Cortex_Body, na.rm = T),
+            CortBody_Ratio_SD = sd(Cortex_Body, na.rm = T)/sqrt(Total_Cells)
+            )
+
+t2 = df_cell %>% 
+    group_by(Cell_Line, Plasmid) %>%
+  filter(Filo_Number > 0) %>%
+  summarize(Total_Cells = n(),
+            FiloNum_Avg = mean(Filo_Number, na.rm = T),
+            FiloNum_SD = sd(Filo_Number, na.rm = T)/sqrt(Total_Cells),
+            )
+
+t3 = df_cell %>% 
+    group_by(Cell_Line, Plasmid) %>%
+  filter(Filo_Number > 0) %>%
+  summarize(Total_Cells = n(),
+            Filoper10um_Avg = mean(Filos_per_10um, na.rm = T),
+            Filoper10um_SD = sd(Filos_per_10um, na.rm = T)/sqrt(Total_Cells)
+            )
+
+t4 = df_filo %>% 
+    group_by(Cell_Line, Plasmid) %>%
+  summarize(Total_Cells = n(),
+            Filo_Length_Avg = mean(Filo_Length, na.rm =  T),
+            Filo_Length_SD = sd(Filo_Length, na.rm = T)/sqrt(Total_Cells)
+            )
+
+t5 = df_filo %>% 
+    group_by(Cell_Line, Plasmid) %>%
+  summarize(Total_Cells = n(),
+            Tip_Avg = mean(Filo_Body_Int, na.rm = T),
+            Tip_SD = sd(Filo_Body_Int, na.rm = T)/sqrt(Total_Cells)
+  )
+
+mytable <- t1 %>%
+  left_join(t2 %>% select(Cell_Line, Plasmid, FiloNum_Avg, FiloNum_SD), by = c("Cell_Line", "Plasmid")) %>%
+  left_join(t3 %>% select(Cell_Line, Plasmid, Filoper10um_Avg, Filoper10um_SD), by = c("Cell_Line", "Plasmid")) %>%
+  left_join(t4 %>% select(Cell_Line, Plasmid, Filo_Length_Avg, Filo_Length_SD), by = c("Cell_Line", "Plasmid")) %>%
+  left_join(t5 %>% select(Cell_Line, Plasmid, Tip_Avg, Tip_SD), by = c("Cell_Line", "Plasmid"))
+
+# Remove temporary dataframes
+rm(t1, t2, t3, t4, t5)
+
+write.xlsx(mytable, file = "MotorMut.xlsx")
+```
+# Statistical Tests
+```{r}
+fit_model <- function(df, var_name) {
+  formula <- as.formula(paste0(var_name, " ~ Plasmid"))
+  model <- aov(formula, data = df)
+  model
+}
+
+posthoc_analysis <- function(model) {
+  TukeyHSD(model, "Plasmid")
+}
+
+var_filnum = "Filo_Number"
+var_cortex = "Cortex_Body"
+var_int = "Filo_Body_Int"
+var_length = "Filo_Length"
+
+filo_num_model = df_cell %>% 
+  filter(Filo_Number > 0) %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_filnum)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
+
+cortex_model = df_cell %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_cortex)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
+
+filo_int_model = df_filo %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_int)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
+
+filo_len_model = df_filo %>% 
+  group_by(Cell_Line) %>% 
+  nest() %>% 
+  mutate(models = map(data, ~ fit_model(.x, var_length)),
+         model_summary = map(models, summary),
+         posthoc = map(models, posthoc_analysis))
+```
+
+# Graphing 
+```{r}
+# GG Template 
+# Note: having the geom_signif within the function is bad, since it compares a t-test rather than an anova. 
+
+# color_blind = c("#00FFFF", "#FF00FF", "#FFFF00")
+color_blind = c("#E66100", "#5D3A9B", "#994F00")
+wt_filo = 7.71
+wt_len = 1.94
+wt_int = 1.77
+
+make_gg = function(df, variable){
+  df %>% 
+    ggplot(aes(x = Plasmid, y = !!sym(variable), fill = Plasmid)) +
+    ggforce::geom_sina(aes(col = Plasmid)) +
+    theme(legend.position = "none",
+          axis.title.x = element_blank()) +
+    scale_color_manual(values = color_blind) +
+    scale_x_discrete(breaks = c("pDTi516","pDTi576","pDTi577"),
+                    labels = c("WT", 
+                               "Deafness Mutant", 
+                               "Recoding Mutant"),
+                    guide = guide_axis(n.dodge = 2)) +
+ geom_signif(
+    comparisons = list(c("pDTi516", "pDTi576"),
+                       c("pDTi576", "pDTi577"),
+                       c("pDTi516", "pDTi577")
+                       ),
+    # map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "N.S."= 0.1),
+    step_increase = 0.1,
+    color = "black"
+    ) 
+}
+
+make_gg_filo = function(df, variable){
+  df %>% 
+    filter(variable > 0) %>% 
+    ggplot(aes(x = Plasmid, y = !!sym(variable), fill = Plasmid)) +
+    ggforce::geom_sina(aes(col = Plasmid)) +
+    scale_color_manual(values = color_blind) +
+    theme(legend.position = "none",
+          axis.title.x = element_blank()) +
+    scale_x_discrete(breaks = c("pDTi516","pDTi576","pDTi577"),
+                    labels = c("WT", 
+                               "Deafness Mutant", 
+                               "Recoding Mutant"),
+                    guide = guide_axis(n.dodge = 2)) +
+  geom_signif(
+    comparisons = list(c("pDTi516", "pDTi576"),
+                       c("pDTi576", "pDTi577"),
+                       c("pDTi516", "pDTi577")
+                       ),
+    # map_signif_level=c("***"=0.001,"**"=0.01, "*"=0.05, "N.S."=1),
+    step_increase = 0.1,
+    color = "black"
+    ) 
+}
+
+
+```
+
+```{r}
+filo_gg = make_gg(df_cell, "Filo_Number") 
+cort_gg = make_gg(df_cell, "Cortex_Body")
+len_gg = make_gg(df_filo, "Filo_Length")
+tip_gg = make_gg(df_filo, "Filo_Body_Int")
+
+filo_gg  
+cort_gg
+len_gg
+tip_gg
+
+# ggsave(filo_gg ,file = "Mut_Images/filo_gg.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
+# ggsave(cort_gg ,file = "Mut_Images/cort_gg.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
+# ggsave(len_gg ,file = "Mut_Images/len_gg.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
+# ggsave(tip_gg ,file = "Mut_Images/tip_gg.tiff",
+#        width = 4,
+#        height = 5,
+#        units = "cm",
+#        scaling = 0.35,
+#        dpi = 600)
+```
+
