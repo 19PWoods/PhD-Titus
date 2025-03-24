@@ -327,7 +327,7 @@ transformers==4.24.0
 twisted==22.2.0
 twisted-iocpsupport==1.0.2
 typing-extensions==4.4.0
-tzdata==2022g
+tzdata==2022.6
 ujson==5.4.0
 unidecode==1.2.0
 urllib3==1.26.14
